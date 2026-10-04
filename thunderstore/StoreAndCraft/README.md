@@ -62,6 +62,8 @@ Loot finds its chest. One key clears your pockets. Craft, upgrade and build stra
 - Plants a crop grid, harvests when all is ripe, replants
 - **Shift / Ctrl + wheel:** width / length. **E:** crop, harvest / plant, auto-fill, links
 - Needs cultivated ground. Unlocks with the Cultivator recipe
+- Plants again 30 s after the harvest. The hover shows that countdown, the time until the harvest and the seeds the grid needs
+- Seed plants too: **Carrot (for seeds)** and so on grow seeds, so the seed supply never runs out
 
 ### Armor stand
 - **E** swaps your armor with the stand's
@@ -72,7 +74,7 @@ Loot finds its chest. One key clears your pockets. Craft, upgrade and build stra
 - **Ignore:** skipped by everything
 - **Show on display:** ignored chest still counts on displays
 - **Manual fill:** nothing goes in automatically, stations can still take from it
-- **Only stations:** no dump, no ground pickup, stations and links still fill it
+- **Only stations:** no dump, no ground pickup, no crafting or building from it. Only stations and links fill and empty it
 - **l1-l9:** link for stations
 - Settings are saved on the chest, not in its name
 

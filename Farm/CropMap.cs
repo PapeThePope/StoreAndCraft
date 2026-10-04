@@ -16,6 +16,8 @@ namespace StoreAndCraft
             public GameObject Sapling;   // piece with Plant
             public float GrowRadius;     // Plant.m_growRadius (free space it needs)
             public bool NeedCultivated;  // Plant.m_needCultivatedGround
+            /// <summary>Plants the vegetable itself to grow seeds (sapling_seedcarrot...): keeps the seed supply going.</summary>
+            public bool MakesSeeds;
             public readonly HashSet<string> Ripe = new HashSet<string>(); // Pickable prefab names
         }
 
@@ -44,9 +46,8 @@ namespace StoreAndCraft
                     continue;
                 if (placeable != null && !placeable.Contains(go))
                     continue;
-                // Saplings only (sapling_carrot), not the vegetable-to-seed ones (sapling_seedcarrot).
-                if (!go.name.StartsWith("sapling", System.StringComparison.OrdinalIgnoreCase)
-                    || go.name.StartsWith("sapling_seed", System.StringComparison.OrdinalIgnoreCase))
+                // Saplings only: sapling_carrot (seeds → carrots) and sapling_seedcarrot (carrot → seeds).
+                if (!go.name.StartsWith("sapling", System.StringComparison.OrdinalIgnoreCase))
                     continue;
                 Plant plant = go.GetComponent<Plant>();
                 Piece piece = go.GetComponent<Piece>();
@@ -63,7 +64,8 @@ namespace StoreAndCraft
                     Seed = seed,
                     Sapling = go,
                     GrowRadius = plant.m_growRadius,
-                    NeedCultivated = plant.m_needCultivatedGround
+                    NeedCultivated = plant.m_needCultivatedGround,
+                    MakesSeeds = go.name.StartsWith("sapling_seed", System.StringComparison.OrdinalIgnoreCase)
                 };
                 foreach (GameObject grown in plant.m_grownPrefabs)
                 {
@@ -81,7 +83,7 @@ namespace StoreAndCraft
 
             _all.Sort((a, b) => string.Compare(DisplayFilters.ItemLabel(a.Seed), DisplayFilters.ItemLabel(b.Seed),
                 System.StringComparison.CurrentCultureIgnoreCase));
-            Plugin.Log.LogInfo("Scarecrow crops: " + _all.Count);
+            Plugin.Log.LogDebug("Scarecrow crops: " + _all.Count);
             return _all;
         }
 
@@ -102,6 +104,14 @@ namespace StoreAndCraft
                     set.Add(p);
             }
             return set.Count > 0 ? set : null;
+        }
+
+        /// <summary>What the crop list shows: the item, and "(for seeds)" when the vegetable is planted to grow seeds.</summary>
+        public static string DisplayName(string seed)
+        {
+            string name = DisplayFilters.ItemLabel(seed);
+            Crop crop = ForSeed(seed);
+            return crop != null && crop.MakesSeeds ? name + " " + Loc.T("(for seeds)", "(für Samen)") : name;
         }
 
         public static Crop ForSeed(string seed)

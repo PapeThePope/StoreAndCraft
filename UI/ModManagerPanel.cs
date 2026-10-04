@@ -345,6 +345,7 @@ namespace StoreAndCraft
             sr.vertical = true;
             sr.movementType = ScrollRect.MovementType.Clamped;
             sr.scrollSensitivity = 360f;
+            SettingsPanel.AddScrollbar(sr, scroll);
 
             if (page)
             {

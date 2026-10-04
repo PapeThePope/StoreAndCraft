@@ -51,7 +51,7 @@ namespace StoreAndCraft
             PathCache.Clear();
             _generation++;
             _sourceLabel = "reload";
-            Plugin.Log.LogInfo("Display definitions changed on disk → reload gen=" + _generation);
+            Plugin.Log.LogDebug("Display definitions changed on disk → reload gen=" + _generation);
         }
 
         /// <summary>
@@ -343,7 +343,7 @@ namespace StoreAndCraft
                 CacheWrite[visualId] = writeUtc;
                 _generation++;
                 _sourceLabel = "json";
-                Plugin.Log.LogInfo("Display definition loaded: " + path);
+                Plugin.Log.LogDebug("Display definition loaded: " + path);
                 return def;
             }
             catch (Exception ex)

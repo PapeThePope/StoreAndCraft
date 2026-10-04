@@ -1,5 +1,26 @@
 # Changelog
 
+## 1.4.1
+
+### NEW FEATURES
+- **Scarecrow**: after a harvest it waits 30 s before planting again, the hover text counts down ("Auto-plant in") and shows the time until the harvest ("Harvest in")
+- **Scarecrow**: seed plants too (Carrot (for seeds), Onion (for seeds) ...): plant the vegetable, harvest seeds, so the seeds never run out
+- **Scarecrow**: the crop list and the hover show how many seeds the whole grid needs
+
+### UI IMPROVEMENTS
+- Mod manager: scrollbar next to the list (drag it with the mouse)
+- Station label for an empty input says what the station takes: Wood (kiln), Grain (windmill), Flax (spinning wheel), Ore (smelter)
+- Much quieter log: only real problems show up
+
+### FIX
+- Scarecrow: **Level ground** and **Cultivate** only touch the planted grid (before they reached far beyond it), pressing again no longer makes spikes
+- Scarecrow: no seeds are planted where a plant would have no room to grow, and a stuck plant no longer blocks the harvest
+- Scarecrow: choosing another crop while the old one is still growing no longer leaves the old one unharvested
+- Scarecrow: harvest after a plant has just grown no longer waits a whole minute
+- Feed trough, scarecrow and displays were magenta (no texture) with Vulkan / DirectX 12
+- **Only stations** chests are no longer used for crafting, building or Epic Loot, only by stations and links
+- Lit fire / torch that can be switched off: **E** switches it off again (it refilled it instead)
+
 ## 1.4.0
 
 ### NEW FEATURES

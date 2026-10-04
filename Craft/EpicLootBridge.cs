@@ -70,7 +70,7 @@ namespace StoreAndCraft
 
                 _registered = ok is bool b && b;
                 if (_registered)
-                    Plugin.Log.LogInfo("Registered chest inventory provider with Epic Loot.");
+                    Plugin.Log.LogDebug("Registered chest inventory provider with Epic Loot.");
                 else
                     Plugin.Log.LogDebug("Epic Loot RegisterInventoryProvider returned false.");
             }
@@ -147,7 +147,7 @@ namespace StoreAndCraft
             Vector3 origin = player.transform.position;
             foreach (Container chest in NearbyIndex.Current)
             {
-                if (chest == null || ChestNames.IsIgnored(chest))
+                if (chest == null || ChestNames.BlocksCraft(chest))
                     continue;
                 if (ContainerFilter.Distance(origin, chest.transform.position) > range)
                     continue;
@@ -211,7 +211,7 @@ namespace StoreAndCraft
             {
                 if (need <= 0)
                     break;
-                if (chest == null || ChestNames.IsIgnored(chest))
+                if (chest == null || ChestNames.BlocksCraft(chest))
                     continue;
                 if (ContainerFilter.Distance(origin, chest.transform.position) > range)
                     continue;
@@ -241,7 +241,7 @@ namespace StoreAndCraft
 
             foreach (Container chest in NearbyIndex.Current)
             {
-                if (chest == null || ChestNames.IsIgnored(chest))
+                if (chest == null || ChestNames.BlocksCraft(chest))
                     continue;
                 if (ContainerFilter.Distance(origin, chest.transform.position) > range)
                     continue;

@@ -69,6 +69,12 @@ namespace StoreAndCraft
             return (FlagsOf(container) & FlagIgnore) != 0;
         }
 
+        /// <summary>Craft / build / grab / Epic Loot skip these: [I] / [H] and chests set to Only stations (station in / output only).</summary>
+        public static bool BlocksCraft(Container container)
+        {
+            return (FlagsOf(container) & (FlagIgnore | FlagNoDump)) != 0;
+        }
+
         public static bool IsIgnoredName(string stored)
         {
             return IsFullyIgnoredName(stored) || IsHiddenName(stored);

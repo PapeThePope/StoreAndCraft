@@ -222,7 +222,7 @@ namespace StoreAndCraft
         {
             foreach (Container chest in NearbyIndex.Current)
             {
-                if (chest == null || ChestNames.IsIgnored(chest))
+                if (chest == null || ChestNames.BlocksCraft(chest))
                     continue;
                 if (ContainerFilter.Distance(origin, chest.transform.position) > cfgCraft)
                     continue;
@@ -250,7 +250,7 @@ namespace StoreAndCraft
             int total = 0;
             foreach (Container chest in NearbyIndex.Current)
             {
-                if (chest == null || ChestNames.IsIgnored(chest))
+                if (chest == null || ChestNames.BlocksCraft(chest))
                     continue;
                 if (ContainerFilter.Distance(origin, chest.transform.position) > cfgCraft)
                     continue;
@@ -284,7 +284,7 @@ namespace StoreAndCraft
                 if (deficit <= 0)
                     break;
 
-                if (chest == null || ChestNames.IsIgnored(chest))
+                if (chest == null || ChestNames.BlocksCraft(chest))
                     continue;
 
                 if (ContainerFilter.Distance(origin, chest.transform.position) > cfgCraft)

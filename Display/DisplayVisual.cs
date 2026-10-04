@@ -187,7 +187,7 @@ namespace StoreAndCraft
 
             board.AppliedLayoutGen = DisplayLayouts.Generation;
             // Always Info so a failed place is obvious in LogOutput.
-            Plugin.Log.LogInfo("layout applied id=" + id
+            Plugin.Log.LogDebug("layout applied id=" + id
                 + " source=" + DisplayLayouts.SourceLabel
                 + " hit=" + layoutApplied
                 + " collider=" + (colliderOverride ? "def" : "fit")
@@ -284,13 +284,58 @@ namespace StoreAndCraft
             return Path.Combine(Path.GetDirectoryName(dll) ?? "", "displays");
         }
 
-        internal static void ApplyValheimShaders(GameObject model)
+        private static Shader _pieceShader;
+
+        /// <summary>
+        /// Valheim's build shader. Shader.Find only sees shaders that are loaded right now (not yet at start-up on
+        /// some machines), so the shader is also taken from a vanilla piece that is always in memory.
+        /// </summary>
+        internal static Shader PieceShader()
         {
-            Shader piece = Shader.Find("Custom/Piece");
+            if (_pieceShader != null)
+                return _pieceShader;
+            Shader found = Shader.Find("Custom/Piece");
+            if (found == null && ZNetScene.instance != null)
+            {
+                string[] pieces = { "wood_floor", "woodwall", "wood_wall_roof", "piece_chest_wood", "stone_wall_1x1" };
+                for (int p = 0; p < pieces.Length && found == null; p++)
+                {
+                    GameObject prefab = ZNetScene.instance.GetPrefab(pieces[p]);
+                    if (prefab == null)
+                        continue;
+                    foreach (Renderer r in prefab.GetComponentsInChildren<Renderer>(true))
+                    {
+                        foreach (Material m in r.sharedMaterials)
+                        {
+                            if (m != null && m.shader != null && m.shader.name == "Custom/Piece")
+                            {
+                                found = m.shader;
+                                break;
+                            }
+                        }
+                        if (found != null)
+                            break;
+                    }
+                }
+            }
+            if (found != null)
+                _pieceShader = found;
+            return found;
+        }
+
+        /// <summary>
+        /// Swaps the bundle materials to Valheim's piece shader. Returns false when that shader is not available
+        /// yet: the model then carries a PieceShaderFix, which tries again once it is in the world.
+        /// </summary>
+        internal static bool ApplyValheimShaders(GameObject model)
+        {
+            Shader piece = PieceShader();
             if (piece == null)
             {
-                LogOnce("noshader", "Valheim piece shader was not found. Displays keep the Unity preview material.");
-                return;
+                LogOnce("noshader", "Valheim piece shader was not found. Displays keep the Unity preview material until it is.");
+                if (model != null && model.GetComponent<PieceShaderFix>() == null)
+                    model.AddComponent<PieceShaderFix>();
+                return false;
             }
 
             Renderer[] renderers = model.GetComponentsInChildren<Renderer>(true);
@@ -335,6 +380,7 @@ namespace StoreAndCraft
                 }
                 renderer.materials = mats;
             }
+            return true;
         }
 
         /// <summary>
@@ -373,12 +419,12 @@ namespace StoreAndCraft
                 sb.Append(" metallic=").Append(mat.GetFloat("_Metallic").ToString("0.##"));
             if (mat.HasProperty("_Glossiness"))
                 sb.Append(" smooth=").Append(mat.GetFloat("_Glossiness").ToString("0.##"));
-            Plugin.Log.LogInfo(sb.ToString());
+            Plugin.Log.LogDebug(sb.ToString());
 
             if (piece != null && Logged.Add("piece shader slots"))
             {
                 var tmp = new Material(piece);
-                Plugin.Log.LogInfo("Custom/Piece texture slots: " + string.Join(", ", tmp.GetTexturePropertyNames()));
+                Plugin.Log.LogDebug("Custom/Piece texture slots: " + string.Join(", ", tmp.GetTexturePropertyNames()));
                 UnityEngine.Object.Destroy(tmp);
             }
         }
@@ -674,7 +720,34 @@ namespace StoreAndCraft
         {
             if (!Logged.Add(key))
                 return;
-            Plugin.Log.LogInfo(message);
+            Plugin.Log.LogDebug(message);
+        }
+    }
+    /// <summary>
+    /// On a model whose shader swap could not run at start-up (Custom/Piece not loaded yet): every instance retries
+    /// twice a second until it works, so the model never stays magenta. Magenta = a Unity shader this graphics
+    /// API has no variant for.
+    /// </summary>
+    internal sealed class PieceShaderFix : MonoBehaviour
+    {
+        private float _next;
+        private int _tries;
+
+        private void Update()
+        {
+            if (Time.unscaledTime < _next)
+                return;
+            _next = Time.unscaledTime + 0.5f;
+            _tries++;
+            if (DisplayVisual.ApplyValheimShaders(gameObject))
+            {
+                Plugin.Log.LogDebug("Piece shader applied late to " + gameObject.name + " (try " + _tries + ").");
+                Destroy(this);
+            }
+            else if (_tries >= 240)
+            {
+                enabled = false; // 2 minutes: give up
+            }
         }
     }
 }

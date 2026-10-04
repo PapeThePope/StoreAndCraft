@@ -135,7 +135,7 @@ namespace StoreAndCraft
         /// <summary>Only when a label actually goes away (rare) — shows why in LogOutput.</summary>
         private static void LogCleared(Component station, string slot, string reason)
         {
-            Plugin.Log.LogInfo("Station missing-label cleared: "
+            Plugin.Log.LogDebug("Station missing-label cleared: "
                 + (station != null ? station.name : "?") + " slot=" + slot + " (" + reason + ")");
         }
 

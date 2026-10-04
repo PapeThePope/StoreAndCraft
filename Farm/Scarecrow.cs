@@ -21,9 +21,13 @@ namespace StoreAndCraft
         private const string KeyCrop = "SAC_farmCrop";
         private const string KeyHarvest = "SAC_farmHarvest";
         private const string KeyPlant = "SAC_farmPlant";
+        private const string KeyPlantAt = "SAC_farmPlantAt";     // world time (ms) when the next planting starts, 0 = none
+        private const string KeyPlantDone = "SAC_farmPlantDone"; // 1 = planted, waits for the next harvest
         internal const int MaxSize = 21; // odd: the scarecrow stands in the centre cell
         private const float RecheckGrowingSeconds = 60f;
         private const float RetryMissingSeconds = 30f;
+        /// <summary>After a harvest the field rests this long before it is planted again (shown in the hover text).</summary>
+        private const float PlantDelaySeconds = 30f;
 
         internal static readonly List<Scarecrow> Live = new List<Scarecrow>();
 
@@ -43,6 +47,9 @@ namespace StoreAndCraft
         private ZDO Zdo => _nv != null && _nv.IsValid() ? _nv.GetZDO() : null;
         internal int Cols => Odd(Zdo != null ? Zdo.GetInt(KeyCols, 5) : 5);
         internal int Rows => Odd(Zdo != null ? Zdo.GetInt(KeyRows, 5) : 5);
+
+        /// <summary>Seeds for the whole grid: every point but the middle one, where the scarecrow stands.</summary>
+        internal int SeedsNeeded => Mathf.Max(0, Cols * Rows - 1);
 
         /// <summary>Odd size 1..MaxSize so there is a real centre cell (even values round up).</summary>
         internal static int Odd(int v)
@@ -70,11 +77,44 @@ namespace StoreAndCraft
         }
 
         internal void SetInt(string key, int v) => Write(z => z.Set(key, v));
-        internal void SetCols(int v) => SetInt(KeyCols, Odd(v));
-        internal void SetRows(int v) => SetInt(KeyRows, Odd(v));
-        internal void SetCrop(string seed) => Write(z => z.Set(KeyCrop, seed ?? ""));
+        internal void SetCols(int v) { SetInt(KeyCols, Odd(v)); ArmPlant(0f); }
+        internal void SetRows(int v) { SetInt(KeyRows, Odd(v)); ArmPlant(0f); }
+        internal void SetCrop(string seed) { Write(z => z.Set(KeyCrop, seed ?? "")); ArmPlant(0f); }
         internal void SetHarvest(bool on) => Write(z => z.Set(KeyHarvest, on));
-        internal void SetPlant(bool on) => Write(z => z.Set(KeyPlant, on));
+        internal void SetPlant(bool on)
+        {
+            Write(z => z.Set(KeyPlant, on));
+            if (on)
+                ArmPlant(0f);
+        }
+
+        private static double NowSeconds()
+        {
+            return ZNet.instance != null ? ZNet.instance.GetTimeSeconds() : 0.0;
+        }
+
+        /// <summary>Plant again in <paramref name="delay"/> seconds, and only once: it is switched off again after a pass.</summary>
+        internal void ArmPlant(float delay)
+        {
+            if (_nv == null || !_nv.IsValid())
+                return;
+            if (!_nv.IsOwner())
+                _nv.ClaimOwnership();
+            ZDO z = _nv.GetZDO();
+            z.Set(KeyPlantAt, (long)((NowSeconds() + delay) * 1000.0));
+            z.Set(KeyPlantDone, 0);
+            MarkDirty();
+        }
+
+        /// <summary>Seconds until the planting starts, or -1 when none is waiting.</summary>
+        internal float PlantInSeconds()
+        {
+            ZDO z = Zdo;
+            if (z == null || !PlantOn)
+                return -1f;
+            long at = z.GetLong(KeyPlantAt, 0L);
+            return at <= 0L ? -1f : Mathf.Max(0f, (float)(at / 1000.0 - NowSeconds()));
+        }
 
         private void Write(System.Action<ZDO> set)
         {
@@ -90,6 +130,17 @@ namespace StoreAndCraft
         {
             _dirty = true;
             _nextCheck = 0f;
+        }
+
+        /// <summary>
+        /// Check again in a moment: a plant that just grew is replaced by the ripe crop, but the old plant object is
+        /// only removed at the end of that frame - an immediate scan still counted it as "growing" and then waited
+        /// a whole minute for the next check.
+        /// </summary>
+        internal void MarkDirtyAfter(float seconds)
+        {
+            _notBefore = Mathf.Max(_notBefore, Time.time + seconds);
+            MarkDirty();
         }
 
         // ---- lifecycle
@@ -269,6 +320,9 @@ namespace StoreAndCraft
             }
 
             int link = StationLink.Get(this);
+            // A new scarecrow plants its field once, right away.
+            if (Zdo != null && Zdo.GetInt(KeyPlantDone, -1) < 0 && Zdo.GetLong(KeyPlantAt, 0L) == 0L)
+                ArmPlant(0f);
             // Whole field ripe → harvest everything at once.
             if (Harvest && ripeCount > 0 && growing == 0)
             {
@@ -288,10 +342,23 @@ namespace StoreAndCraft
                     state[i] = Spot.Empty;
                 }
                 ActivityLog.Note(Label(), Loc.T("Harvested ", "Geerntet: ") + ripeCount + " " + DisplayFilters.ItemLabel(crop.Seed));
+                ArmPlant(PlantDelaySeconds); // the field rests first; the hover text counts down
             }
 
-            if (PlantOn)
+            float inSeconds = PlantInSeconds();
+            if (inSeconds == 0f) // armed and due (-1 = nothing waiting, > 0 = still counting down)
+            {
                 PlantEmpty(player, crop, pts, state, link);
+                if (_missingSeeds)
+                {
+                    ArmPlant(PlantDelaySeconds); // not enough seeds: try again later, visible in the hover text
+                }
+                else
+                {
+                    Zdo.Set(KeyPlantAt, 0L); // planted: nothing more until the next harvest
+                    Zdo.Set(KeyPlantDone, 1);
+                }
+            }
 
             growing = 0;
             int empty = 0;
@@ -305,8 +372,71 @@ namespace StoreAndCraft
                 _nextCheck = Time.time + RecheckGrowingSeconds;
             // Missing seeds, or spots still empty (ground not cultivated yet / plant switched off):
             // look again later instead of waiting for a menu change.
-            if (_missingSeeds || (PlantOn && empty > 0))
-                _nextCheck = Mathf.Min(_nextCheck, Time.time + RetryMissingSeconds);
+            // Planting is waiting for its timer: look again when it is due.
+            float wait = PlantInSeconds();
+            if (wait > 0f)
+                _nextCheck = Mathf.Min(_nextCheck, Time.time + wait + 0.25f);
+        }
+
+        // ---- time until the harvest (hover text)
+
+        private static readonly System.Reflection.MethodInfo PlantGrowTime = AccessTools.Method(typeof(Plant), "GetGrowTime");
+        private float _etaAt = -10f;
+        private float _eta = -1f;
+
+        /// <summary>
+        /// Seconds until the last healthy plant of the grid is grown (the field is harvested then), -1 when nothing
+        /// is growing. The plant's own grow time (random per plant) minus the time since it was planted.
+        /// Counted at most once a second: the hover text asks every frame.
+        /// </summary>
+        internal float HarvestInSeconds()
+        {
+            if (Time.time - _etaAt < 1f)
+                return _eta;
+            _etaAt = Time.time;
+            _eta = -1f;
+            if (PlantGrowTime == null || ZNet.instance == null || Zdo == null)
+                return _eta;
+
+            float sp = Spacing;
+            Vector3 half = new Vector3(Cols * sp * 0.5f + 0.5f, 3f, Rows * sp * 0.5f + 0.5f);
+            Collider[] hits = Physics.OverlapBox(transform.position, half, Quaternion.LookRotation(Flat(transform.forward)));
+            var seen = new HashSet<int>();
+            System.DateTime now = ZNet.instance.GetTime();
+            float max = -1f;
+            for (int h = 0; h < hits.Length; h++)
+            {
+                Plant plant = hits[h].GetComponentInParent<Plant>();
+                if (plant == null || !seen.Add(plant.GetInstanceID()) || plant.GetStatus() != Plant.Status.Healthy)
+                    continue;
+                ZNetView pnv = plant.GetComponent<ZNetView>();
+                if (pnv == null || !pnv.IsValid())
+                    continue;
+                long planted = pnv.GetZDO().GetLong(ZDOVars.s_plantTime, 0L);
+                if (planted == 0L)
+                    continue;
+                try
+                {
+                    float growTime = (float)PlantGrowTime.Invoke(plant, null);
+                    float left = growTime - (float)(now - new System.DateTime(planted)).TotalSeconds;
+                    if (left > max)
+                        max = left;
+                }
+                catch (System.Exception)
+                {
+                    return _eta;
+                }
+            }
+            _eta = max;
+            return _eta;
+        }
+
+        private static string DurationText(float seconds)
+        {
+            int total = Mathf.CeilToInt(seconds);
+            int m = total / 60;
+            int s = total % 60;
+            return m > 0 ? m + " min " + s + " s" : s + " s";
         }
 
         private void Scan(List<Vector3> pts, CropMap.Crop crop, Spot[] state, Pickable[] ripe)
@@ -331,10 +461,18 @@ namespace StoreAndCraft
                 if (idx < 0)
                     continue;
                 if (plant != null)
-                    state[idx] = Spot.Growing;
-                else if (!pick.GetPicked() && CropMap.ForRipe(pick.gameObject) == crop)
                 {
-                    if (state[idx] == Spot.Empty)
+                    // The ripe crop is already there (the grown plant is only removed at the end of the frame).
+                    if (state[idx] == Spot.Ripe)
+                        continue;
+                    // A plant that "needs more room" never grows: it must not hold the harvest back for ever.
+                    state[idx] = plant.GetStatus() == Plant.Status.NoSpace ? Spot.Blocked : Spot.Growing;
+                }
+                // Any ripe field crop counts, not only the selected one: switching the crop while the old one is still
+                // in the ground must not leave it unharvested (it would block the field for ever).
+                else if (!pick.GetPicked() && CropMap.ForRipe(pick.gameObject) != null)
+                {
+                    if (state[idx] == Spot.Empty || state[idx] == Spot.Growing)
                     {
                         state[idx] = Spot.Ripe;
                         ripe[idx] = pick;
@@ -343,6 +481,31 @@ namespace StoreAndCraft
                 else if (state[idx] == Spot.Empty)
                     state[idx] = Spot.Blocked;
             }
+        }
+
+        private static int _spaceMask;
+        private static readonly Collider[] SpaceHits = new Collider[24];
+
+        /// <summary>Plant.HaveGrowSpace for a spot: anything but a sick plant within the grow radius blocks.</summary>
+        private bool HasGrowSpace(Vector3 pos, float radius)
+        {
+            if (_spaceMask == 0)
+                _spaceMask = LayerMask.GetMask("Default", "static_solid", "Default_small", "piece", "piece_nonsolid");
+            int n = Physics.OverlapSphereNonAlloc(pos, Mathf.Max(0.05f, radius), SpaceHits, _spaceMask);
+            for (int i = 0; i < n; i++)
+            {
+                Collider c = SpaceHits[i];
+                if (c == null || c.transform.IsChildOf(transform))
+                    continue; // the scarecrow itself
+                // Just harvested: the picked crop is only removed at the end of the frame, its collider is still here.
+                Pickable picked = c.GetComponentInParent<Pickable>();
+                if (picked != null && picked.GetPicked())
+                    continue;
+                Plant plant = c.GetComponent<Plant>();
+                if (plant == null || plant.GetStatus() == Plant.Status.Healthy)
+                    return false;
+            }
+            return true;
         }
 
         private void PlantEmpty(Player player, CropMap.Crop crop, List<Vector3> pts, Spot[] state, int link)
@@ -357,6 +520,13 @@ namespace StoreAndCraft
                     Heightmap hm = Heightmap.FindHeightmap(pts[i]);
                     if (hm == null || !hm.IsCultivated(pts[i]))
                         continue;
+                }
+                // Same room check as the plant itself: no seed is spent where it could never grow
+                // (rock, tree, building piece or an older plant too close).
+                if (!HasGrowSpace(pts[i], crop.GrowRadius))
+                {
+                    state[i] = Spot.Blocked;
+                    continue;
                 }
                 targets.Add(i);
             }
@@ -492,18 +662,19 @@ namespace StoreAndCraft
                 yield break;
             }
 
-            // The terrain is a grid of height points 1 m apart. Both operations reach 1 point (level) / 2 m (paint)
-            // around their centre, so centres 2 m apart on a world-aligned lattice cover everything without holes.
-            // Level: every point inside is set exactly to the scarecrow's base height = perfectly flat.
-            const float step = 2f;
-            float hw = Cols * Spacing * 0.5f + (level ? 1.5f : 1f);
-            float hl = Rows * Spacing * 0.5f + (level ? 1.5f : 1f);
+            // The terrain is a grid of height points exactly 1 m apart. One operation = exactly one height point
+            // (level) / one paint point, placed on a whole-metre lattice, so no point is ever touched by two
+            // operations at once: an overlapping operation reads the not yet updated height and adds its change
+            // twice, which made the spikes. The area is the planted grid plus one point around it.
+            const float step = 1f;
+            float hw = (Cols - 1) * Spacing * 0.5f + 1f;
+            float hl = (Rows - 1) * Spacing * 0.5f + 1f;
             Vector3 c0 = transform.position;
             Vector3 fwd = Flat(transform.forward);
             Vector3 right = Vector3.Cross(Vector3.up, fwd);
             float cx = Mathf.Round(c0.x);
             float cz = Mathf.Round(c0.z);
-            int n = Mathf.CeilToInt((hw + hl) / step) + 1;
+            int n = Mathf.CeilToInt(Mathf.Max(hw, hl) * 1.5f / step) + 1;
 
             if (player != null)
                 player.Message(MessageHud.MessageType.TopLeft,
@@ -531,8 +702,10 @@ namespace StoreAndCraft
             if (player != null)
                 player.Message(MessageHud.MessageType.TopLeft,
                     level ? Loc.T("Field levelled", "Feld eingeebnet") : Loc.T("Field cultivated", "Feld bestellt"), 0, null, false);
-            TerrainBusy = false;
             MarkDirty(); // cultivated now: plant right away
+            // The heightmap needs a moment to take the new heights: pressing again at once would read old heights.
+            yield return new WaitForSeconds(2f);
+            TerrainBusy = false;
         }
 
         /// <summary>One terrain operation: the clone of the inactive template runs its Awake on SetActive and destroys itself.</summary>
@@ -669,9 +842,11 @@ namespace StoreAndCraft
         {
             string crop = string.IsNullOrEmpty(CropSeed)
                 ? Loc.T("no crop selected", "keine Pflanze gewählt")
-                : DisplayFilters.ItemLabel(CropSeed);
+                : CropMap.DisplayName(CropSeed);
             _hoverFrame = Time.frameCount; // shows the grid while the crosshair is on it
             string text = Label() + " (" + crop + ", " + Cols + " × " + Rows + ")";
+            if (!string.IsNullOrEmpty(CropSeed))
+                text += "\n" + Loc.T("Needed for the grid: ", "Benötigt für das Raster: ") + SeedsNeeded;
             string use = Localization.instance != null ? Localization.instance.Localize("$KEY_Use") : "E";
             text += "\n[<color=yellow><b>" + use + "</b></color>] " + Loc.T("Settings", "Einstellungen");
             text += "\n[<color=yellow><b>" + Loc.T("Shift", "Umschalt") + "</b></color> / <color=yellow><b>"
@@ -681,6 +856,12 @@ namespace StoreAndCraft
             text += "\n" + Loc.T("Auto-fill", "Auto-Fill") + ": " + StateText(StationAutoFill.IsOn(_nv));
             text += "\n" + Loc.T("Harvest", "Ernten") + ": " + StateText(Harvest)
                 + "   " + Loc.T("Plant", "Pflanzen") + ": " + StateText(PlantOn);
+            float harvestIn = HarvestInSeconds();
+            if (harvestIn > 0f)
+                text += "\n" + Loc.T("Harvest in: ", "Ernte in: ") + "<color=#ECC44B>~" + DurationText(harvestIn) + "</color>";
+            float plantIn = PlantInSeconds();
+            if (plantIn > 0f)
+                text += "\n" + Loc.T("Auto-plant in: ", "Auto-Pflanzen in: ") + "<color=#ECC44B>" + Mathf.CeilToInt(plantIn) + " s</color>";
             StationLink.PrependHover(ref text, StationLink.Get(this), chest: false);
             return text;
         }
@@ -722,7 +903,7 @@ namespace StoreAndCraft
             {
                 Scarecrow s = Scarecrow.Live[i];
                 if (s != null && s.Contains(pos))
-                    s.MarkDirty();
+                    s.MarkDirtyAfter(1.5f);
             }
         }
     }

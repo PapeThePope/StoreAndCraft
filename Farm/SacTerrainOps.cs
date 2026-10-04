@@ -6,7 +6,7 @@ namespace StoreAndCraft
     /// <summary>
     /// Two own terrain operations for the scarecrow buttons, registered next to Valheim's TerrainOps
     /// (ObjectDB.m_terrainOpsByHash, looked up by prefab name hash on every client):
-    /// level = every height point inside a 3 x 3 square is set exactly to the operation's height, paint dirt;
+    /// level = the height point at the operation is set exactly to the operation's height, paint dirt;
     /// cultivate = paint cultivated only, no smoothing (cultivate_v2 smooths and bends the levelled edge).
     /// Both are transient: TerrainOp applies itself to the terrain compiler and destroys itself.
     /// The mod is required on every client, so every client knows the two hashes.
@@ -37,12 +37,12 @@ namespace StoreAndCraft
                 _level = Make(LevelName);
                 TerrainOp.Settings s = _level.m_settings;
                 s.m_level = true;
-                s.m_levelRadius = 1f;      // square of 3 x 3 height points
+                s.m_levelRadius = 0f;      // exactly one height point per operation
                 s.m_square = true;
                 s.m_levelOffset = 0f;      // the operation's own height is the target height
                 s.m_paintCleared = true;
                 s.m_paintType = TerrainModifier.PaintType.Dirt;
-                s.m_paintRadius = 2f;
+                s.m_paintRadius = 1f;      // only the point itself (the neighbours are 1 m away = no paint)
             }
             if (_cultivate == null)
             {
@@ -52,7 +52,7 @@ namespace StoreAndCraft
                 s.m_smooth = false;
                 s.m_paintCleared = true;
                 s.m_paintType = TerrainModifier.PaintType.Cultivate;
-                s.m_paintRadius = 2f;
+                s.m_paintRadius = 1f;
             }
         }
 

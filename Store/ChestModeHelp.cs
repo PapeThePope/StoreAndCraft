@@ -144,6 +144,7 @@ namespace StoreAndCraft
             string take = Loc.T("Stations / crafting take from it", "Stationen / Craften holen daraus");
             string display = Loc.T("Counted on Storage Displays", "Auf Storage Displays gezählt");
             string rows;
+            int extraLine = 0;
 
             switch (mode)
             {
@@ -159,7 +160,11 @@ namespace StoreAndCraft
                     what = Loc.T("Only stations and links fill it (farms, kiln / smelter output).",
                         "Nur Stationen und Links füllen sie (Farmen, Ausgabe von Köhler / Schmelzer).");
                     rows = Row(dump, Value(false)) + Row(ground, Value(false, Loc.T("(without link)", "(ohne Link)")))
-                        + Row(output, Value(true)) + Row(take, Value(true)) + Row(display, Value(true));
+                        + Row(output, Value(true))
+                        + Row(Loc.T("Stations take from it", "Stationen holen daraus"), Value(true))
+                        + Row(Loc.T("Crafting / building take from it", "Craften / Bauen holen daraus"), Value(false))
+                        + Row(display, Value(true));
+                    extraLine = 1;
                     break;
                 default:
                     title = Loc.T("Ignore", "Ignorieren");
@@ -171,7 +176,7 @@ namespace StoreAndCraft
                     break;
             }
 
-            lines = 7;
+            lines = 7 + extraLine;
             return "<color=#FFD966>" + title + "</color>\n" + what + "\n" + rows;
         }
 

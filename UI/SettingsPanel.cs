@@ -672,6 +672,7 @@ namespace StoreAndCraft
             sr.vertical = true;
             sr.movementType = ScrollRect.MovementType.Clamped;
             sr.scrollSensitivity = 360f; // same as StationFilterMenu; 40 barely moved
+            AddScrollbar(sr, scroll);
 
             BuildContent();
 
@@ -758,6 +759,37 @@ namespace StoreAndCraft
             _infoBody = BuildInfoBody();
             _infoBody.SetActive(false);
             RefreshInfoHeader();
+        }
+
+        /// <summary>
+        /// Visible scrollbar on the right of a long list (drag it with the mouse; the wheel still works).
+        /// Shown only while the content is taller than the list. Used by this panel and the mod manager.
+        /// </summary>
+        internal static void AddScrollbar(ScrollRect sr, RectTransform scroll)
+        {
+            RectTransform bar = NewUi("Scrollbar", scroll, typeof(Image), typeof(Scrollbar));
+            bar.anchorMin = new Vector2(1f, 0f);
+            bar.anchorMax = new Vector2(1f, 1f);
+            // Outside the dark list, in the wood margin between it and the panel edge (not on top of the controls).
+            bar.pivot = new Vector2(0f, 0.5f);
+            bar.sizeDelta = new Vector2(20f, -12f);
+            bar.anchoredPosition = new Vector2(8f, 0f);
+            SetSprite(bar.GetComponent<Image>(), Vanilla("text_field"), new Color(0f, 0f, 0f, 0.55f));
+
+            RectTransform area = NewUi("Sliding Area", bar);
+            Place(area, 0f, 0f, 1f, 1f, 2f, 2f, -2f, -2f);
+            RectTransform handle = NewUi("Handle", area, typeof(Image));
+            handle.offsetMin = Vector2.zero;
+            handle.offsetMax = Vector2.zero;
+            Image handleImg = handle.GetComponent<Image>();
+            SetSprite(handleImg, Vanilla("button_small") ?? Vanilla("button"), Gold);
+
+            Scrollbar sb = bar.GetComponent<Scrollbar>();
+            sb.handleRect = handle;
+            sb.targetGraphic = handleImg;
+            sb.direction = Scrollbar.Direction.BottomToTop;
+            sr.verticalScrollbar = sb;
+            sr.verticalScrollbarVisibility = ScrollRect.ScrollbarVisibility.AutoHide;
         }
 
         private static void ToggleInfo()

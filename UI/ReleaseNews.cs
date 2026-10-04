@@ -15,7 +15,15 @@ namespace StoreAndCraft
         private const float DelayAfterSpawn = 8f;
         private static float _showAt;
 
-        private static string Key => "sac_news_" + Plugin.ModVersion;
+        // One key per minor series (1.4.x): a bug-fix release does not bring Hugin again with the same news.
+        private static string Key
+        {
+            get
+            {
+                string[] v = Plugin.ModVersion.Split(new[] { (char)46 });
+                return "sac_news_" + (v.Length >= 2 ? v[0] + "." + v[1] + ".0" : Plugin.ModVersion);
+            }
+        }
 
         private static string Topic => "StoreAndCraft " + Plugin.ModVersion;
 

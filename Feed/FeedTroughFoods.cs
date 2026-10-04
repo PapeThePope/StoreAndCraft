@@ -46,7 +46,7 @@ namespace StoreAndCraft
                 StationPullFilter.DisplayName(a), StationPullFilter.DisplayName(b),
                 System.StringComparison.CurrentCultureIgnoreCase));
             _all = list;
-            Plugin.Log.LogInfo("Feed trough foods: " + list.Count + " items from tameable animals.");
+            Plugin.Log.LogDebug("Feed trough foods: " + list.Count + " items from tameable animals.");
             return _all;
         }
 

@@ -73,7 +73,8 @@ namespace StoreAndCraft
             float linkBlock = UiLinkGrid.BlockSize(UiLinkGrid.Cell, UiLinkGrid.Gap);
             float top = 56f;
             float y1 = top;
-            float y2 = y1 + RowH + RowGap;
+            const float infoH = 24f; // the seed count under the crop button
+            float y2 = y1 + RowH + infoH + RowGap;
             float y2b = y2 + RowH + RowGap;
             float y2c = y2b + RowH + RowGap;
             float y3 = y2c + RowH + RowGap;
@@ -90,12 +91,17 @@ namespace StoreAndCraft
             string seed = s.CropSeed;
             string cropName = string.IsNullOrEmpty(seed)
                 ? Loc.T("choose...", "wählen...")
-                : StationPullFilter.DisplayName(seed);
+                : CropMap.DisplayName(seed);
             RectTransform cropBtn = Button(p, "Crop", new Vector2(Pad, -y1), new Vector2(PanelW - 2f * Pad, RowH),
                 Loc.T("Crop: ", "Pflanze: ") + cropName, () => { _listOpen = !_listOpen; Build(); }, _listOpen);
             Sprite icon = string.IsNullOrEmpty(seed) ? null : StationFilterMenu.ItemIcon(seed);
             if (icon != null)
                 IconImage(cropBtn, icon, new Vector2(8f, -6f), 28f);
+
+            // How many seeds the whole grid takes (the middle point is the scarecrow's).
+            Label(p, Loc.T("Needed for the whole grid: ", "Benötigt für das ganze Raster: ") + "<color=#ECC44B>" + s.SeedsNeeded + "</color>",
+                new Vector2(Pad + 4f, -(y1 + RowH + 3f)), new Vector2(PanelW - 2f * Pad - 8f, infoH - 4f), 15f, Muted,
+                TextAlignmentOptions.TopLeft);
 
             float half = (PanelW - 2f * Pad - RowGap) * 0.5f;
             Button(p, "Harvest", new Vector2(Pad, -y2), new Vector2(half, RowH),
@@ -175,7 +181,7 @@ namespace StoreAndCraft
                 Sprite icon = StationFilterMenu.ItemIcon(shared);
                 if (icon != null)
                     IconImage(cell, icon, new Vector2((CellW - 44f) * 0.5f, -8f), 44f);
-                Label(cell, StationPullFilter.DisplayName(shared), new Vector2(4f, -54f), new Vector2(CellW - 8f, 34f), 12f,
+                Label(cell, CropMap.DisplayName(shared), new Vector2(4f, -54f), new Vector2(CellW - 8f, 34f), 12f,
                     on ? Gold : Muted, TextAlignmentOptions.Top);
             }
         }

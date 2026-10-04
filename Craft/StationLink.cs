@@ -196,6 +196,10 @@ namespace StoreAndCraft
             if (ExcludeTroughs && FeedTrough.IsTrough(chest))
                 return false;
 
+            // Link -1 = craft / build (no station): chests set to Only stations are for station in / output only.
+            if (stationLinkId < 0 && ChestNames.IsNoDump(chest))
+                return false;
+
             if (stationLinkId < 0)
                 return true;
 

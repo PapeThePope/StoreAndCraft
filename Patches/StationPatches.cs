@@ -262,7 +262,6 @@ namespace StoreAndCraft
     [HarmonyPatch(typeof(Fireplace), nameof(Fireplace.Interact))]
     internal static class FireplaceInteractPatch
     {
-        private static readonly MethodInfo GetFuel = AccessTools.Method(typeof(Fireplace), "GetFuel");
         private static int _fillDepth;
 
         private static bool Prefix(Fireplace __instance, Humanoid user, bool hold, bool alt, ref bool __result)
@@ -327,21 +326,13 @@ namespace StoreAndCraft
             }
         }
 
+        /// <summary>Fireplace has no GetFuel(): the fuel is the ZDO float s_fuel.</summary>
         private static float FireplaceFuel(Fireplace fireplace)
         {
-            if (fireplace == null || GetFuel == null)
+            ZNetView nv = fireplace != null ? fireplace.GetComponent<ZNetView>() : null;
+            if (nv == null || !nv.IsValid() || nv.GetZDO() == null)
                 return 0f;
-            try
-            {
-                object value = GetFuel.Invoke(fireplace, null);
-                if (value is float)
-                    return (float)value;
-                return 0f;
-            }
-            catch
-            {
-                return 0f;
-            }
+            return nv.GetZDO().GetFloat(ZDOVars.s_fuel);
         }
     }
 

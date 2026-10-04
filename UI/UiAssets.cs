@@ -156,7 +156,7 @@ namespace StoreAndCraft
                 }
             }
 
-            Plugin.Log.LogInfo("StoreAndCraft UI sprites: " + Cache.Count);
+            Plugin.Log.LogDebug("StoreAndCraft UI sprites: " + Cache.Count);
         }
 
         /// <summary>

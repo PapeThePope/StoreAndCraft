@@ -16,8 +16,23 @@ namespace StoreAndCraft
         private static readonly FieldInfo GuiMultiAmount = AccessTools.Field(typeof(InventoryGui), "m_multiCraftAmount");
         private static readonly FieldInfo GuiUpgrade = AccessTools.Field(typeof(InventoryGui), "m_craftUpgradeItem");
         private static readonly FieldInfo WearRenderersField = AccessTools.Field(typeof(WearNTear), "m_renderers");
-        private static readonly MethodInfo InventoryChanged = AccessTools.Method(typeof(Inventory), "Changed", System.Type.EmptyTypes)
-            ?? AccessTools.Method(typeof(Inventory), "Changed");
+        private static readonly MethodInfo InventoryChanged = FindInventoryChanged();
+
+        /// <summary>Inventory.Changed, whatever its parameters are in this Valheim version (no Harmony warning when it differs).</summary>
+        private static MethodInfo FindInventoryChanged()
+        {
+            MethodInfo any = null;
+            foreach (MethodInfo m in AccessTools.GetDeclaredMethods(typeof(Inventory)))
+            {
+                if (m.Name != "Changed")
+                    continue;
+                if (m.GetParameters().Length == 0)
+                    return m;
+                if (any == null)
+                    any = m;
+            }
+            return any;
+        }
 
         public static ZNetView View(Container container)
         {

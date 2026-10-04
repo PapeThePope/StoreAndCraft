@@ -106,7 +106,7 @@ namespace StoreAndCraft
                         Container chest = Scratch[i];
                         if (still <= 0)
                             break;
-                        if (chest == null || ChestNames.IsIgnored(chest))
+                        if (chest == null || ChestNames.BlocksCraft(chest))
                             continue;
                         if (!ContainerFilter.IsPlayerBuiltStorage(chest))
                             continue;

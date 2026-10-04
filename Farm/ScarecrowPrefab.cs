@@ -114,7 +114,7 @@ namespace StoreAndCraft
             _prefab = clone;
             ByHash[Scarecrow.PrefabName.GetStableHashCode()] = clone;
             EnsureNamed(scene, clone);
-            Plugin.Log.LogInfo("StoreAndCraft scarecrow registered (" + (custom ? "Unity model" : "pole placeholder") + ").");
+            Plugin.Log.LogDebug("StoreAndCraft scarecrow registered (" + (custom ? "Unity model" : "pole placeholder") + ").");
         }
 
         /// <summary>Unity model when the bundle has it: pole renderers/colliders off, model box as hit.</summary>
@@ -185,7 +185,7 @@ namespace StoreAndCraft
             ItemDrop drop = go != null ? go.GetComponent<ItemDrop>() : null;
             if (drop == null)
             {
-                Plugin.Log.LogWarning("StoreAndCraft scarecrow recipe: item '" + item + "' not found, requirement skipped.");
+                Plugin.Log.LogDebug("StoreAndCraft scarecrow recipe: item '" + item + "' not found, requirement skipped.");
                 return;
             }
             list.Add(new Piece.Requirement { m_resItem = drop, m_amount = amount, m_amountPerLevel = 0, m_recover = true });

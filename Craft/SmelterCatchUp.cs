@@ -361,7 +361,7 @@ namespace StoreAndCraft
             string made = oreGot + "x " + outLabel + " -> " + (inChest ? chestLabel : ActivityLog.Ground());
             ActivityLog.Add(prefix + Loc.T("used", "verbraucht") + " " + used);
             ActivityLog.Add(prefix + Loc.T("made", "hergestellt") + " " + made);
-            Plugin.Log.LogInfo("[CatchUp] " + prefix + "used " + used + ", made " + made
+            Plugin.Log.LogDebug("[CatchUp] " + prefix + "used " + used + ", made " + made
                 + " | credit left " + Mathf.RoundToInt(left) + " s");
 
             Totals sum = TotalsFor(nv, label);
@@ -440,7 +440,7 @@ namespace StoreAndCraft
                 + Loc.T("used", "verbraucht") + " " + Totals.Join(sum.Used)
                 + ", " + Loc.T("made", "hergestellt") + " " + Totals.Join(sum.Made);
             ActivityLog.Add(line);
-            Plugin.Log.LogInfo("[CatchUp] " + line);
+            Plugin.Log.LogDebug("[CatchUp] " + line);
         }
 
         private static bool Stop(ZNetView nv, string label, string reason)

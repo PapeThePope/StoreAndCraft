@@ -96,7 +96,7 @@ namespace StoreAndCraft
                     parts.Add(kv.Key + " ore=" + kv.Value.Ore + " fuel=" + kv.Value.Fuel);
                 foreach (KeyValuePair<string, int> kv in VanillaHoney)
                     parts.Add(kv.Key + " honey=" + kv.Value);
-                Plugin.Log.LogInfo("Station caps vanilla: " + string.Join(", ", parts.ToArray()));
+                Plugin.Log.LogDebug("Station caps vanilla: " + string.Join(", ", parts.ToArray()));
             }
         }
 

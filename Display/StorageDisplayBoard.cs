@@ -2050,7 +2050,7 @@ namespace StoreAndCraft
             _slotCount = rows * cols;
             _slots = new SlotUi[_slotCount];
 
-            Plugin.Log.LogInfo("Definition grid UI face id=" + CurrentVisualId()
+            Plugin.Log.LogDebug("Definition grid UI face id=" + CurrentVisualId()
                 + " pos=" + gridPos
                 + " size=" + faceMeters
                 + " cells=" + cols + "x" + rows
@@ -2145,7 +2145,7 @@ namespace StoreAndCraft
                 _buildingSections = false;
             }
 
-            Plugin.Log.LogInfo("Display sections UI id=" + LayoutId()
+            Plugin.Log.LogDebug("Display sections UI id=" + LayoutId()
                 + " layout=" + layout.name + " sections=" + defs.Length + " cells=" + total
                 + " source=" + DisplayLayouts.SourceLabel);
         }
@@ -2242,7 +2242,7 @@ namespace StoreAndCraft
         private static void LogFaceOnce(string msg)
         {
             if (FaceLogged.Add(msg))
-                Plugin.Log.LogInfo(msg);
+                Plugin.Log.LogDebug(msg);
         }
 
         private static void DestroyOldCanvas(Transform parent)

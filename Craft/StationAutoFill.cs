@@ -49,7 +49,6 @@ namespace StoreAndCraft
         private static readonly MethodInfo SmelterGetFuel = AccessTools.Method(typeof(Smelter), "GetFuel");
         private static readonly MethodInfo SmelterSetFuel = AccessTools.Method(typeof(Smelter), "SetFuel");
         private static readonly MethodInfo SmelterGetQueue = AccessTools.Method(typeof(Smelter), "GetQueueSize");
-        private static readonly MethodInfo FireGetFuel = AccessTools.Method(typeof(Fireplace), "GetFuel");
         private static readonly MethodInfo CookGetFuel = AccessTools.Method(typeof(CookingStation), "GetFuel");
         private static readonly MethodInfo CookIsFull = AccessTools.Method(typeof(CookingStation), "IsStationFull");
         private static readonly MethodInfo FermenterGetStatus = AccessTools.Method(typeof(Fermenter), "GetStatus");
@@ -1044,6 +1043,31 @@ namespace StoreAndCraft
             return added > 0;
         }
 
+        /// <summary>
+        /// Red label text for an empty input: the item itself when there is one, otherwise a word that fits the
+        /// station (the kiln takes wood, the windmill grain, only smelters take ore).
+        /// </summary>
+        private static string MissingInputLabel(Smelter smelter, List<string> allowed)
+        {
+            if (allowed.Count == 1)
+                return DisplayFilters.ItemLabel(allowed[0]);
+            string n = Utils.GetPrefabName(smelter.gameObject).ToLowerInvariant();
+            if (n.Contains("kiln"))
+                return Loc.T("Wood", "Holz");
+            if (n.Contains("windmill"))
+                return Loc.T("Grain", "Getreide");
+            if (n.Contains("spinning"))
+                return Loc.T("Flax", "Flachs");
+            if (n.Contains("smelter") || n.Contains("blast"))
+                return Loc.T("Ore", "Erz");
+
+            // Other stations (mods): the real item names, at most three.
+            var names = new List<string>();
+            for (int i = 0; i < allowed.Count && i < 3; i++)
+                names.Add(DisplayFilters.ItemLabel(allowed[i]));
+            return string.Join(", ", names.ToArray()) + (allowed.Count > 3 ? ", ..." : "");
+        }
+
         private static bool FillOreToMax(Smelter smelter, Player player)
         {
             List<string> allowed = StationPullFilter.AllowedOreNames(smelter);
@@ -1111,9 +1135,7 @@ namespace StoreAndCraft
             if (added == 0)
             {
                 Quiet(smelter, "ore", QuietEmptySeconds);
-                StationMissingLabel.SetMissing(smelter, "ore", allowed.Count == 1
-                    ? DisplayFilters.ItemLabel(allowed[0])
-                    : Loc.T("Ore", "Erz"));
+                StationMissingLabel.SetMissing(smelter, "ore", MissingInputLabel(smelter, allowed));
                 return false;
             }
             StationMissingLabel.ClearMissing(smelter, "ore");
@@ -1977,17 +1999,7 @@ namespace StoreAndCraft
 
         private static float ReadFireFuel(Fireplace fire)
         {
-            if (FireGetFuel != null)
-            {
-                try
-                {
-                    return ToFloat(FireGetFuel.Invoke(fire, null));
-                }
-                catch
-                {
-                }
-            }
-
+            // Fireplace has no GetFuel(): the fuel is the ZDO float "fuel".
             ZNetView nv = fire.GetComponent<ZNetView>();
             ZDO zdo = nv != null && nv.IsValid() ? nv.GetZDO() : null;
             if (zdo == null)
