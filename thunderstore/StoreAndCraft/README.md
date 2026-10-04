@@ -65,6 +65,10 @@ Loot finds its chest. One key clears your pockets. Craft, upgrade and build stra
 - Plants again 30 s after the harvest. The hover shows that countdown, the time until the harvest and the seeds the grid needs
 - Seed plants too: **Carrot (for seeds)** and so on grow seeds, so the seed supply never runs out
 
+### Plantable mushrooms (Cultivator)
+- Mushroom, Yellow mushroom, Blue mushroom: plant a mushroom to grow **spores**, plant the spores to grow mushrooms
+- Only on cultivated ground, the scarecrow plants and harvests them too
+
 ### Armor stand
 - **E** swaps your armor with the stand's
 - **Alt+E**: pick a preset item from your bag per weapon / shield / tool slot. **E** swaps it with the stand's piece, back and forth

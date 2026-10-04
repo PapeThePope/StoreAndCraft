@@ -111,7 +111,10 @@ namespace StoreAndCraft
         {
             string name = DisplayFilters.ItemLabel(seed);
             Crop crop = ForSeed(seed);
-            return crop != null && crop.MakesSeeds ? name + " " + Loc.T("(for seeds)", "(für Samen)") : name;
+            if (crop == null || !crop.MakesSeeds)
+                return name;
+            bool mushroom = crop.Sapling != null && crop.Sapling.name.Contains("mushroom");
+            return name + " " + (mushroom ? Loc.T("(for spores)", "(für Sporen)") : Loc.T("(for seeds)", "(für Samen)"));
         }
 
         public static Crop ForSeed(string seed)

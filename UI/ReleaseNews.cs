@@ -15,59 +15,27 @@ namespace StoreAndCraft
         private const float DelayAfterSpawn = 8f;
         private static float _showAt;
 
-        // One key per minor series (1.4.x): a bug-fix release does not bring Hugin again with the same news.
-        private static string Key
-        {
-            get
-            {
-                string[] v = Plugin.ModVersion.Split(new[] { (char)46 });
-                return "sac_news_" + (v.Length >= 2 ? v[0] + "." + v[1] + ".0" : Plugin.ModVersion);
-            }
-        }
+        private static string Key => "sac_news_" + Plugin.ModVersion;
 
         private static string Topic => "StoreAndCraft " + Plugin.ModVersion;
 
         private static string Text => Loc.T(
             "New in this version:\n"
-            + "Displays:\n"
-            + "- Carved storage displays with their own layouts and hammer icons\n"
-            + "- Sign displays get layouts too, columns can fill bottom-up\n"
-            + "- Right click an item: the camera shows the chest that holds it\n"
-            + "Stations:\n"
-            + "- Feed trough: animal food filter and auto-fill\n"
-            + "- Fermenter: mead filter and batches of the same base\n"
-            + "- Sap extractor: auto-store puts the sap into chests\n"
-            + "- Linked stations show in red what their chests ran out of\n"
-            + "- Station capacities in the settings menu (admin)\n"
             + "Farm:\n"
-            + "- Scarecrow: plants and harvests a field grid, buttons to level and cultivate the ground\n"
-            + "Chests:\n"
-            + "- New button Only stations in the chest settings\n"
+            + "- Plantable mushrooms: plant a mushroom to grow spores, plant the spores to grow mushrooms (Cultivator and scarecrow)\n"
+            + "- Scarecrow: waits 30 s after the harvest (hover shows the countdown), shows the time until the harvest and the seeds it needs\n"
+            + "- Scarecrow: seed plants too (Carrot (for seeds) ...), level ground / cultivate only on the grid\n"
             + "Other:\n"
-            + "- Armor stand: swaps your armor, presets let weapon, shield and tool swap too\n"
-            + "- Filters only list items you have already discovered\n"
-            + "\n"
-            + "New: mod manager built in, press F10",
+            + "- Chests set to Only stations are no longer used for crafting and building\n"
+            + "- Fixed the magenta models with Vulkan / DirectX 12",
             "Neu in dieser Version:\n"
-            + "Displays:\n"
-            + "- Geschnitzte Storage Displays mit eigenen Layouts und Hammer-Icons\n"
-            + "- Schild-Displays haben jetzt auch Layouts, Säulen füllen sich von unten\n"
-            + "- Rechtsklick auf ein Item: die Kamera zeigt die Kiste mit dem Item\n"
-            + "Stationen:\n"
-            + "- Futtertrog: Futter-Filter und Auto-Fill\n"
-            + "- Fermenter: Met-Filter und Chargen derselben Basis\n"
-            + "- Sap-Extraktor: Auto-Lagern legt den Sap in Kisten\n"
-            + "- Gelinkte Stationen zeigen rot, was in ihren Kisten fehlt\n"
-            + "- Stations-Maxima im Einstellungsmenü (Admin)\n"
             + "Farm:\n"
-            + "- Vogelscheuche: bepflanzt und erntet ein Feld-Raster, Knöpfe zum Einebnen und Bestellen\n"
-            + "Kisten:\n"
-            + "- Neuer Knopf Nur Stationen in den Kisten-Einstellungen\n"
+            + "- Pflanzbare Pilze: Pilz pflanzen gibt Sporen, Sporen pflanzen gibt Pilze (Kultivator und Vogelscheuche)\n"
+            + "- Vogelscheuche: wartet 30 s nach der Ernte (Hover zeigt den Countdown), zeigt die Zeit bis zur Ernte und die nötigen Samen\n"
+            + "- Vogelscheuche: auch Samen-Pflanzen (Karotte (für Samen) ...), Einebnen / Bestellen nur auf dem Raster\n"
             + "Sonstiges:\n"
-            + "- Rüstungsständer: tauscht deine Rüstung, mit Vorlagen tauschen auch Waffe, Schild und Werkzeug\n"
-            + "- Filter zeigen nur Items, die du schon entdeckt hast\n"
-            + "\n"
-            + "Neu: Mod-Manager eingebaut, drücke F10");
+            + "- Kisten mit Nur Stationen werden nicht mehr zum Craften und Bauen benutzt\n"
+            + "- Magentafarbene Modelle mit Vulkan / DirectX 12 behoben");
 
         private static bool AlreadySeen()
         {

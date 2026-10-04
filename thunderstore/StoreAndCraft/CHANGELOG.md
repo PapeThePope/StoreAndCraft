@@ -1,8 +1,13 @@
 # Changelog
 
-## 1.4.1
+## 1.4.2
 
 ### NEW FEATURES
+- **Plantable mushrooms** (Cultivator): Mushroom, Yellow mushroom and Blue mushroom
+  - Plant a mushroom on cultivated ground: it grows **spores** (3 per mushroom)
+  - Plant the spores: they grow mushrooms. Same cycle as carrot and carrot seeds
+  - New items: Mushroom spores, Yellow mushroom spores, Blue mushroom spores, each in its colour
+  - The scarecrow plants and harvests them too (Mushroom (for spores) and Mushroom spores in its crop list)
 - **Scarecrow**: after a harvest it waits 30 s before planting again, the hover text counts down ("Auto-plant in") and shows the time until the harvest ("Harvest in")
 - **Scarecrow**: seed plants too (Carrot (for seeds), Onion (for seeds) ...): plant the vegetable, harvest seeds, so the seeds never run out
 - **Scarecrow**: the crop list and the hover show how many seeds the whole grid needs
