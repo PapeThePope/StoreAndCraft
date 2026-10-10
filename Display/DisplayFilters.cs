@@ -21,8 +21,11 @@ namespace StoreAndCraft
     internal static class DisplayFilters
     {
         public const string ZdoKey = "sac_filter";
+        public static readonly int ZdoKeyHash = ZdoKey.GetStableHashCode();
         public const string ZdoKeyMulti = "sac_filters";
+        public static readonly int ZdoKeyMultiHash = ZdoKeyMulti.GetStableHashCode();
         public const string ZdoKeyItems = "sac_filter_items";
+        public static readonly int ZdoKeyItemsHash = ZdoKeyItems.GetStableHashCode();
 
         public const int FoodFilterId = 2;
         public const int IngredientsFilterId = 22;
@@ -89,7 +92,7 @@ namespace StoreAndCraft
         // Smelted / worked metals
         private static readonly string[] MetalNames =
         {
-            "copper", "tin", "bronze", "iron", "silver", "blackmetal", "flametal", "flametalnew",
+            "copper", "tin", "bronze", "iron", "silver", "blackmetal", "flametal", "flametalnew", "gold",
             "bronzenails", "ironnails", "chain"
         };
 
@@ -120,7 +123,7 @@ namespace StoreAndCraft
         private static readonly string[] CropNames =
         {
             "barley", "barleyflour", "flax", "carrot", "onion", "turnip",
-            "carrotseeds", "onionseeds", "turnipseeds", "beechseeds", "birchseeds",
+            "kale", "oat", "carrotseeds", "onionseeds", "turnipseeds", "kaleseeds", "oatseeds", "beechseeds", "birchseeds",
             "fircone", "pinecone", "acorn", "oakseeds", "dandelion", "thistle",
             "sap", "royaljelly"
         };
@@ -407,7 +410,7 @@ namespace StoreAndCraft
             if (zdo == null)
                 return ids;
 
-            string raw = zdo.GetString(ZdoKeyMulti, "");
+            string raw = zdo.GetString(ZdoKeyMultiHash, "");
             if (!string.IsNullOrEmpty(raw))
             {
                 string[] parts = raw.Split('|');
@@ -427,7 +430,7 @@ namespace StoreAndCraft
             }
 
             // Legacy single-filter boards.
-            int legacy = zdo.GetInt(ZdoKey, 0);
+            int legacy = zdo.GetInt(ZdoKeyHash, 0);
             DisplayFilter found;
             if (legacy > 0 && TryGet(legacy, out found))
                 ids.Add(legacy);
@@ -600,7 +603,7 @@ namespace StoreAndCraft
             var list = new List<string>();
             if (zdo == null)
                 return list;
-            string raw = zdo.GetString(ZdoKeyItems, "");
+            string raw = zdo.GetString(ZdoKeyItemsHash, "");
             if (string.IsNullOrEmpty(raw))
                 return list;
             string[] parts = raw.Split('|');
@@ -1061,14 +1064,25 @@ namespace StoreAndCraft
             return Normalize(item.m_shared.m_name);
         }
 
+        // Normalize is a pure text function, but a Storage Display repaint calls it several times per item
+        // and filter (thousands of items): remember the result per input text (a few hundred item names).
+        private static readonly Dictionary<string, string> NormalizeCache = new Dictionary<string, string>();
+
         private static string Normalize(string raw)
         {
             if (string.IsNullOrEmpty(raw))
                 return "";
+            string cached;
+            if (NormalizeCache.TryGetValue(raw, out cached))
+                return cached;
+
             string s = raw.Trim().ToLowerInvariant();
             if (s.StartsWith("$item_"))
                 s = s.Substring(6);
             s = s.Replace(" ", "").Replace("-", "");
+            if (NormalizeCache.Count > 4096)
+                NormalizeCache.Clear();
+            NormalizeCache[raw] = s;
             return s;
         }
     }

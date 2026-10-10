@@ -19,11 +19,11 @@ namespace StoreAndCraft
                 return;
 
             NearbyIndex.Tick();
-            // One-shot user action: force-Load every chest in dump range so we do not
-            // trust a stale/empty view after returning from a raid / unloaded area.
-            float range = Plugin.Settings.PlayerDumpRange.Value;
-            foreach (Container nearby in NearbyIndex.Within(player.transform.position, range))
-                NearbyIndex.EnsureInventory(nearby, force: true);
+            // Valheim reloads every loaded chest within a second of any change (Container.CheckForChanges), so only
+            // a chest whose view is still empty (raid / unloaded area: never loaded) needs a forced load here.
+            // The chest that takes an item is refreshed again right before the write (TryReadyForWrite).
+            float range = Plugin.Settings.DumpReach();
+            LoadUnknownViews(player.transform.position, range);
 
             var items = new List<ItemDrop.ItemData>(inv.GetAllItems());
             int stored = 0;
@@ -94,9 +94,8 @@ namespace StoreAndCraft
             }
 
             NearbyIndex.Tick();
-            float range = Plugin.Settings.PlayerDumpRange.Value;
-            foreach (Container nearby in NearbyIndex.Within(player.transform.position, range))
-                NearbyIndex.EnsureInventory(nearby, force: true);
+            float range = Plugin.Settings.DumpReach();
+            LoadUnknownViews(player.transform.position, range);
 
             Container chest = ChestPicker.FindStoreTarget(
                 player.transform.position,
@@ -125,6 +124,15 @@ namespace StoreAndCraft
                 ActivityLog.Move(Loc.T("Store", "Einlagern"), ActivityLog.Bag(), moved, shared, ActivityLog.Chest(chest));
             }
             return ok;
+        }
+
+        private static void LoadUnknownViews(Vector3 origin, float range)
+        {
+            foreach (Container nearby in NearbyIndex.Within(origin, range))
+            {
+                Inventory view = nearby != null ? nearby.GetInventory() : null;
+                NearbyIndex.EnsureInventory(nearby, force: view == null || view.NrOfItems() <= 0);
+            }
         }
 
         public static bool ShouldDump(ItemDrop.ItemData item, Inventory inv)

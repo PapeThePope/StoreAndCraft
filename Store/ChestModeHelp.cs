@@ -10,7 +10,7 @@ namespace StoreAndCraft
     /// </summary>
     internal static class ChestModeHelp
     {
-        internal enum Mode { Manual, NoDump, Ignore }
+        internal enum Mode { CraftOnly, NoDump, Ignore }
 
         internal const float Size = 14f;
         private static readonly Color Gold = new Color(1f, 0.85f, 0.4f, 1f);
@@ -148,12 +148,15 @@ namespace StoreAndCraft
 
             switch (mode)
             {
-                case Mode.Manual:
-                    title = Loc.T("Manual fill", "Manuell befüllen");
-                    what = Loc.T("Nothing is put in automatically, you fill it yourself.",
-                        "Nichts wird automatisch eingelagert, du befüllst sie selbst.");
-                    rows = Row(dump, Value(false)) + Row(ground, Value(false)) + Row(output, Value(false))
-                        + Row(take, Value(true)) + Row(display, Value(true));
+                case Mode.CraftOnly:
+                    title = Loc.T("Only build/craft", "Nur Bauen/Craften");
+                    what = Loc.T("You fill it (by hand or dump), only crafting and building take from it.",
+                        "Du befüllst sie (per Hand oder Dump), nur Craften und Bauen holen daraus.");
+                    rows = Row(dump, Value(true)) + Row(ground, Value(false)) + Row(output, Value(false))
+                        + Row(Loc.T("Stations take from it", "Stationen holen daraus"), Value(false))
+                        + Row(Loc.T("Crafting / building take from it", "Craften / Bauen holen daraus"), Value(true))
+                        + Row(display, Value(true));
+                    extraLine = 1;
                     break;
                 case Mode.NoDump:
                     title = Loc.T("Only stations", "Nur Stationen");

@@ -205,6 +205,7 @@ namespace StoreAndCraft
             plant.m_needCultivatedGround = true;
             plant.m_biome |= Heightmap.Biome.Swamp; // the blue mushroom lives there
             SwapVisuals(plant, visualFrom != null ? visualFrom.m_hideWhenPicked : null);
+            WildCrops.FitViews(plant); // the carrot stages' own scale / rotation squeezed the mushroom models
 
             piece.m_name = title;
             piece.m_description = Loc.T(
@@ -220,10 +221,10 @@ namespace StoreAndCraft
         }
 
         /// <summary>The four growth stages show the wild mushroom (small while young, full size when grown).</summary>
-        private static void SwapVisuals(Plant plant, GameObject mushroom)
+        internal static void SwapVisuals(Plant plant, GameObject mushroom, float youngScale = 0.45f)
         {
             string[] fields = { "m_healthy", "m_unhealthy", "m_healthyGrown", "m_unhealthyGrown" };
-            float[] scale = { 0.45f, 0.45f, 1f, 1f };
+            float[] scale = { youngScale, youngScale, 1f, 1f };
             for (int i = 0; i < fields.Length; i++)
             {
                 FieldInfo f = AccessTools.Field(typeof(Plant), fields[i]);
@@ -355,27 +356,33 @@ namespace StoreAndCraft
         }
 
         /// <summary>The saplings in the Cultivator's build list (like the scarecrow in the hammer's).</summary>
-        internal static void TryRegisterCultivator()
+        internal static bool TryRegisterCultivator()
         {
             if (!_done || ObjectDB.instance == null)
-                return;
+                return false;
             GameObject item = ObjectDB.instance.GetItemPrefab("Cultivator");
             ItemDrop drop = item != null ? item.GetComponent<ItemDrop>() : null;
             PieceTable table = drop != null && drop.m_itemData != null && drop.m_itemData.m_shared != null
                 ? drop.m_itemData.m_shared.m_buildPieces : null;
             if (table == null || table.m_pieces == null)
-                return;
+                return false;
+            bool added = false;
             for (int i = 0; i < Kinds.Length; i++)
             {
-                Add(table, Kinds[i].SaplingFromSpores);
-                Add(table, Kinds[i].SaplingForSpores);
+                added |= Add(table, Kinds[i].SaplingFromSpores);
+                added |= Add(table, Kinds[i].SaplingForSpores);
             }
+            if (added)
+                CropMap.Invalidate();
+            return added;
         }
 
-        private static void Add(PieceTable table, GameObject sapling)
+        private static bool Add(PieceTable table, GameObject sapling)
         {
-            if (sapling != null && !table.m_pieces.Contains(sapling))
-                table.m_pieces.Add(sapling);
+            if (sapling == null || table.m_pieces.Contains(sapling))
+                return false;
+            table.m_pieces.Add(sapling);
+            return true;
         }
     }
 
@@ -385,19 +392,6 @@ namespace StoreAndCraft
         private static void Postfix(ZNetScene __instance)
         {
             MushroomCrops.RegisterForScene(__instance);
-        }
-    }
-
-    [HarmonyPatch(typeof(ZNetScene), nameof(ZNetScene.GetPrefab), typeof(int))]
-    internal static class ZNetSceneGetPrefabMushroomPatch
-    {
-        private static void Postfix(int hash, ref GameObject __result)
-        {
-            if (__result != null)
-                return;
-            GameObject found = MushroomCrops.PrefabForHash(hash);
-            if (found != null)
-                __result = found;
         }
     }
 
@@ -420,7 +414,9 @@ namespace StoreAndCraft
             if (ZNetScene.instance != null)
                 MushroomCrops.RegisterForScene(ZNetScene.instance);
             MushroomCrops.AddItemsToDb(ObjectDB.instance);
-            MushroomCrops.TryRegisterCultivator();
+            // Valheim decided which pieces the player knows when the player was created, before these were in the list.
+            if (MushroomCrops.TryRegisterCultivator())
+                QueenHives.RefreshKnown(__instance);
         }
     }
 }

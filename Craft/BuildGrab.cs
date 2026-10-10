@@ -78,7 +78,7 @@ namespace StoreAndCraft
 
             NearbyIndex.Tick();
             bool leaveOne = Plugin.Settings.LeaveOneItem.Value;
-            float range = Plugin.Settings.CraftRange.Value;
+            float range = Plugin.Settings.CraftReach();
             Vector3 origin = player.transform.position;
             Scratch.Clear();
             NearbyIndex.CollectNear(origin, range, Scratch);

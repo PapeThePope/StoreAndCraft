@@ -30,6 +30,7 @@ Loot finds its chest. One key clears your pockets. Craft, upgrade and build stra
 - 1 item stays in each chest (switch in the Morda Mod Manager)
 - **C + place**: grab a piece's materials from chests, nothing is placed
 - Epic Loot: craft, enchanting table, Forge of Potential use chest stock
+- PierSupports: the extra pier segments are paid from chests too
 
 ### Stations
 - **[E]** refill: fuel, ore, food from chests (inventory first)
@@ -48,10 +49,11 @@ Loot finds its chest. One key clears your pockets. Craft, upgrade and build stra
 - Carved boards: small, medium, large, upright and wide. Vanilla sign displays too
 - **E:** pick categories (small: one category or up to 4 items), search box
 - **Right click** an item on the display (or in that menu): camera flies to the chest that holds it, the chest blinks (again = next chest)
+- **Min** field in each item tile of that menu: below this amount the count on the display turns red (empty or 0 = off)
 - **Shift + right click:** switch layout
 - **Shift + left click:** display scale
 - **Alt+E** on small: name / amount. **Alt+R:** scan range per display
-- Displays with the same selection next to each other share pages
+- Every display shows all of its items by itself (no shared pages)
 - Chests set to Ignore are not counted
 
 ### Feed trough (hammer)
@@ -77,7 +79,7 @@ Loot finds its chest. One key clears your pockets. Craft, upgrade and build stra
 ### Chest settings (**Alt+E**)
 - **Ignore:** skipped by everything
 - **Show on display:** ignored chest still counts on displays
-- **Manual fill:** nothing goes in automatically, stations can still take from it
+- **Only build/craft:** you fill it (by hand or dump), no ground pickup or station output, stations never take from it. Only crafting and building take from it
 - **Only stations:** no dump, no ground pickup, no crafting or building from it. Only stations and links fill and empty it
 - **l1-l9:** link for stations
 - Settings are saved on the chest, not in its name

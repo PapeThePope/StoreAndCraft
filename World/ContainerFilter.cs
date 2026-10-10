@@ -81,27 +81,45 @@ namespace StoreAndCraft
         /// no creator and must not steal stacks from the player's base sorting.
         /// Carts and ships are always allowed.
         /// </summary>
+        // Runs for every chest of every store / deposit / display check and walks the hierarchy (GetComponentInParent).
+        // A "yes" never changes for a container (cart, ship, player piece): remembered per instance. A "no" is checked
+        // again each time (the creator is set right after placement, a world chest stays no, troughs are few).
+        private static readonly System.Collections.Generic.HashSet<int> PlayerBuiltIds = new System.Collections.Generic.HashSet<int>();
+        private static ZNetScene _playerBuiltScene;
+
         public static bool IsPlayerBuiltStorage(Container container)
         {
             if (container == null)
                 return false;
 
+            if (_playerBuiltScene != ZNetScene.instance || PlayerBuiltIds.Count > 16384)
+            {
+                PlayerBuiltIds.Clear();
+                _playerBuiltScene = ZNetScene.instance;
+            }
+            int id = container.GetInstanceID();
+            if (PlayerBuiltIds.Contains(id))
+                return true;
+
             // Feed troughs are animal food only — not dump / auto-store / craft targets.
             if (FeedTrough.IsTrough(container))
                 return false;
 
-            if (container.GetComponentInParent<Vagon>() != null)
-                return true;
-            if (container.GetComponentInParent<Ship>() != null)
-                return true;
-
-            Piece piece = container.GetComponent<Piece>();
-            if (piece == null)
-                piece = container.GetComponentInParent<Piece>();
-            if (piece == null)
-                return false;
-
-            return piece.IsPlacedByPlayer();
+            bool built;
+            if (container.GetComponentInParent<Vagon>() != null || container.GetComponentInParent<Ship>() != null)
+            {
+                built = true;
+            }
+            else
+            {
+                Piece piece = container.GetComponent<Piece>();
+                if (piece == null)
+                    piece = container.GetComponentInParent<Piece>();
+                built = piece != null && piece.IsPlacedByPlayer();
+            }
+            if (built)
+                PlayerBuiltIds.Add(id);
+            return built;
         }
 
         public static void RefreshInventory(Container container, bool force = false)
@@ -176,13 +194,12 @@ namespace StoreAndCraft
                 bool payload = ZdoHasItemPayload(nv.GetZDO());
                 if (payload || !container.IsInUse())
                 {
-                    if (Plugin.Log != null && Time.unscaledTime >= _nextEmptyWriteLog)
+                    // Only the race is worth a warning. No payload = the chest is really empty (nothing saved in
+                    // it yet): skipped the same way, but silently, it is normal for every empty chest in the base.
+                    if (payload && Plugin.Log != null && Time.unscaledTime >= _nextEmptyWriteLog)
                     {
                         _nextEmptyWriteLog = Time.unscaledTime + 10f;
-                        Plugin.Log.LogWarning(
-                            payload
-                                ? "Skipped chest write: local inventory empty but ZDO still has items (load race)."
-                                : "Skipped chest write: local inventory empty after travel / unload.");
+                        Plugin.Log.LogWarning("Skipped chest write: local inventory empty but ZDO still has items (load race).");
                     }
                     return false;
                 }

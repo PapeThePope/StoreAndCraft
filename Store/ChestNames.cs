@@ -5,6 +5,7 @@ namespace StoreAndCraft
     internal static class ChestNames
     {
         public const string ZdoKey = "kac_label";
+        public static readonly int ZdoKeyHash = ZdoKey.GetStableHashCode();
         public const int MaxLength = 32;
         /// <summary>Fully ignored: dump, craft, displays, search.</summary>
         public const string IgnorePrefix = "[I]";
@@ -20,10 +21,12 @@ namespace StoreAndCraft
         // Chest flags live in their own ZDO int (no prefix in the name). Name prefixes written by
         // older versions or typed by hand still count (see FlagsOf).
         public const string FlagsKey = "SAC_chestFlags";
+        public static readonly int FlagsKeyHash = FlagsKey.GetStableHashCode();
         public const int FlagIgnore = 1;   // [I]; with FlagShow = [H]
         public const int FlagShow = 2;     // ignored chest still counts on Storage Displays
-        public const int FlagManual = 4;   // [M]
+        public const int FlagManual = 4;   // [M] legacy "Manual fill": read as Only stations (see Normalize)
         public const int FlagNoDump = 8;   // no bag dump / plain ground pickup; stations + links still deposit
+        public const int FlagCraftOnly = 16; // nothing goes in automatically, only crafting / building take from it
 
         /// <summary>Flags of a chest: its own flag int plus legacy [I]/[H]/[M] in the name.</summary>
         public static int FlagsOf(Container container)
@@ -32,7 +35,18 @@ namespace StoreAndCraft
             if (nv == null || !nv.IsValid() || nv.GetZDO() == null)
                 return 0;
             ZDO zdo = nv.GetZDO();
-            return zdo.GetInt(FlagsKey, 0) | FlagsFromName(zdo.GetString(ZdoKey, string.Empty));
+            return Normalize(zdo.GetInt(FlagsKeyHash, 0) | FlagsFromName(zdo.GetString(ZdoKeyHash, string.Empty)));
+        }
+
+        /// <summary>Manual fill was removed: chests that had it (flag or [M] in the name) count as Only stations.</summary>
+        private static int Normalize(int flags)
+        {
+            if ((flags & FlagManual) == 0)
+                return flags;
+            flags &= ~FlagManual;
+            if ((flags & FlagIgnore) == 0)
+                flags |= FlagNoDump;
+            return flags;
         }
 
         public static int FlagsFromName(string stored)
@@ -53,7 +67,7 @@ namespace StoreAndCraft
                 return false;
             if (!nv.IsOwner())
                 nv.ClaimOwnership();
-            nv.GetZDO().Set(FlagsKey, flags);
+            nv.GetZDO().Set(FlagsKeyHash, flags);
             return true;
         }
 
@@ -61,6 +75,12 @@ namespace StoreAndCraft
         public static bool IsNoDump(Container container)
         {
             return (FlagsOf(container) & FlagNoDump) != 0;
+        }
+
+        /// <summary>Only build/craft: nothing is put in automatically, stations never take from it.</summary>
+        public static bool IsCraftOnly(Container container)
+        {
+            return (FlagsOf(container) & FlagCraftOnly) != 0;
         }
 
         /// <summary>Dump / craft / auto-fill / build-grab skip these entirely ([I] or [H]). Not [M].</summary>
@@ -80,13 +100,6 @@ namespace StoreAndCraft
             return IsFullyIgnoredName(stored) || IsHiddenName(stored);
         }
 
-        /// <summary>Manual-fill chests: no automated deposit in; station/craft pull still allowed.</summary>
-        public static bool IsManualFill(Container container)
-        {
-            int f = FlagsOf(container);
-            return (f & FlagManual) != 0 && (f & FlagIgnore) == 0;
-        }
-
         public static bool IsManualFillName(string stored)
         {
             if (string.IsNullOrEmpty(stored) || IsFullyIgnoredName(stored) || IsHiddenName(stored))
@@ -95,15 +108,19 @@ namespace StoreAndCraft
             return t.StartsWith(ManualPrefix, System.StringComparison.OrdinalIgnoreCase);
         }
 
-        /// <summary>True when dump / intake / auto-store / station output must not put items in.</summary>
+        /// <summary>True when intake / auto-store / station output must not put items in.</summary>
         public static bool BlocksDeposit(Container container)
         {
-            return (FlagsOf(container) & (FlagIgnore | FlagManual)) != 0;
+            return (FlagsOf(container) & (FlagIgnore | FlagCraftOnly)) != 0;
         }
 
-        public static bool BlocksDepositName(string stored)
+        /// <summary>
+        /// True when the player's own dump / store one item must not put items in: only Ignore. Only build/craft
+        /// chests take what the player dumps (nothing else goes in by itself); Only stations is skipped by ChestPicker.
+        /// </summary>
+        public static bool BlocksDump(Container container)
         {
-            return IsIgnoredName(stored) || IsManualFillName(stored);
+            return (FlagsOf(container) & FlagIgnore) != 0;
         }
 
         /// <summary>Only [I] — excluded from displays and search.</summary>
@@ -255,6 +272,39 @@ namespace StoreAndCraft
             return t;
         }
 
+        /// <summary>
+        /// "Full" / "Almost full" above the chest's hover text, by how full the stacks are, not only the slots: a used
+        /// slot counts as stack / max stack (one wood in a slot is 1/50 used), an empty slot as free.
+        /// Full = no free slot and every stack at its max (nothing fits any more); Almost full = 90 % of the room used.
+        /// </summary>
+        public static void PrependFullHover(ref string text, Container container)
+        {
+            if (string.IsNullOrEmpty(text) || container == null)
+                return;
+            Inventory inv = container.GetInventory();
+            if (inv == null)
+                return;
+            int total = inv.GetWidth() * inv.GetHeight();
+            if (total <= 0)
+                return;
+            bool room = inv.GetEmptySlots() > 0;
+            float used = 0f;
+            foreach (ItemDrop.ItemData item in inv.GetAllItems())
+            {
+                if (item == null)
+                    continue;
+                int max = StackLimits.MaxStack(item);
+                int stack = Mathf.Clamp(item.m_stack, 0, max);
+                used += (float)stack / max;
+                if (stack < max)
+                    room = true;
+            }
+            if (!room)
+                text = "<color=#e74c3c>" + Loc.T("Status: Full", "Status: Voll") + "</color>\n" + text;
+            else if (used >= total * 0.9f)
+                text = "<color=#e67e22>" + Loc.T("Status: Almost full", "Status: Fast voll") + "</color>\n" + text;
+        }
+
         /// <summary>Colored status lines above hover text (Ignore / Manual fill / Show on display).</summary>
         public static void PrependStatusHover(ref string text, int flags)
         {
@@ -269,13 +319,13 @@ namespace StoreAndCraft
                 if ((flags & FlagShow) != 0)
                     lines += "<color=#e67e22>" + Loc.T("Display ✓", "Display ✓") + "</color>\n";
             }
-            else if ((flags & FlagManual) != 0)
+            else if ((flags & FlagCraftOnly) != 0)
             {
-                lines = "<color=#3498db>" + Loc.T("Status: Manual fill", "Status: Manuell befüllen") + "</color>\n";
+                lines = "<color=#3498db>" + Loc.T("Status: Only build/craft", "Status: Nur Bauen/Craften") + "</color>\n";
             }
 
-            // No dump is shown only alone; Ignore / Manual fill already block more.
-            if ((flags & FlagNoDump) != 0 && (flags & (FlagIgnore | FlagManual)) == 0)
+            // No dump is shown only alone; Ignore / Only build/craft already block more.
+            if ((flags & FlagNoDump) != 0 && (flags & (FlagIgnore | FlagCraftOnly)) == 0)
                 lines += "<color=#1abc9c>" + Loc.T("Status: Only stations", "Status: Nur Stationen") + "</color>\n";
 
             if (lines.Length > 0)
@@ -294,7 +344,7 @@ namespace StoreAndCraft
             if (nv == null || !nv.IsValid() || nv.GetZDO() == null)
                 return null;
 
-            string name = nv.GetZDO().GetString(ZdoKey, string.Empty);
+            string name = nv.GetZDO().GetString(ZdoKeyHash, string.Empty);
             return string.IsNullOrEmpty(name) ? null : name;
         }
 
@@ -315,7 +365,7 @@ namespace StoreAndCraft
                     ContainerFilter.SaveInventory(container);
             }
 
-            nv.GetZDO().Set(ZdoKey, Sanitize(name));
+            nv.GetZDO().Set(ZdoKeyHash, Sanitize(name));
             return true;
         }
 

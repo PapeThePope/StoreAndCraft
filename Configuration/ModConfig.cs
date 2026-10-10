@@ -9,7 +9,7 @@ namespace StoreAndCraft
         // v19 = TorchAutoFillDefault synced.
         // v20 = station capacities (6 - Stations) + fermenter batch synced.
         // v21 = TorchAutoFillOverride synced (World Override for torches); chest flags (SAC_chestFlags) in the chest ZDO.
-        public const int ProtocolVersion = 21;
+        public const int ProtocolVersion = 22;
         /// <summary>Highest station capacity the F10 panel / config accepts.</summary>
         public const float MaxStationCap = 50f;
         public const float MaxRange = 1000f;
@@ -32,6 +32,9 @@ namespace StoreAndCraft
         public ConfigEntry<float> CraftRange { get; }
         public ConfigEntry<float> AutoFillRange { get; }
         public ConfigEntry<float> AutoFillChestRange { get; }
+        public ConfigEntry<float> ScarecrowRange { get; }
+        public ConfigEntry<float> ScarecrowChestRange { get; }
+        public ConfigEntry<bool> AutomationLoadedArea { get; }
         public ConfigEntry<float> IntakeInterval { get; }
         public ConfigEntry<int> MaxTransfersPerTick { get; }
         public ConfigEntry<KeyboardShortcut> DumpKey { get; }
@@ -68,6 +71,11 @@ namespace StoreAndCraft
         // Local only (not synced): Hugin release news once per version.
         public ConfigEntry<bool> ShowReleaseNews { get; }
         public ConfigEntry<string> ReleaseNewsSeen { get; }
+        // Local only (not synced): Stack / Sort buttons on the inventory and on the chest panel.
+        public ConfigEntry<bool> ShowBagSortButtons { get; }
+        public ConfigEntry<bool> ShowChestSortButtons { get; }
+        // Local only (not synced): "Chest full" / "No linked chest" / "No chest nearby" notice above stations.
+        public ConfigEntry<bool> ShowStationNotices { get; }
 
         public ModConfig(ConfigFile file)
         {
@@ -99,7 +107,7 @@ namespace StoreAndCraft
             StorageRange = file.Bind("2 - Store", "StorageRange", 10f, new ConfigDescription(
                 "Extra reach for take-stack and search (meters). Synced from server when LockConfig is on.", range));
             DisplayRange = file.Bind("2 - Store", "DisplayRange", 10f, new ConfigDescription(
-                "Default chest-scan range for Storage Displays (meters). Each display can override with Alt+R (5–50). Synced from server when LockConfig is on.", range));
+                "Not used any more: every Storage Display sets its own range with Alt+R (5–50 m, 10 m until set). Kept so config files and the server sync stay compatible.", range));
             AutoStackEnabled = file.Bind("2 - Store", "AutoStackEnabled", false,
                 "If enabled, stacks already inside a chest are compacted toward the Valheim max. Never moves items from your inventory; dump and middle-click do that.");
             CraftRange = file.Bind("3 - Craft", "CraftRange", 20f, new ConfigDescription(
@@ -108,6 +116,12 @@ namespace StoreAndCraft
                 "Auto-fill range in meters: player → station (kiln/smelter/blast furnace/oven/fermenter/torch). Stations farther away pause until you come closer. Chests are searched around each station (see AutoFillChestRange). Auto-fill never takes from your bag, only from matching linked / untagged chests. Independent from CraftRange. Synced from server when LockConfig is on.", range));
             AutoFillChestRange = file.Bind("3 - Craft", "AutoFillChestRange", 0f, new ConfigDescription(
                 "Station → chest range in meters for auto-fill materials and auto-store output. 0 = same as AutoFillRange. Tip: large AutoFillRange (e.g. 80) with a small AutoFillChestRange (e.g. 10) keeps a whole base running while each station only uses chests right next to it. Synced from server when LockConfig is on.", range));
+            ScarecrowRange = file.Bind("3 - Craft", "ScarecrowRange", 0f, new ConfigDescription(
+                "Scarecrow range in meters: player → scarecrow. It plants and harvests only while you are at most this far away. 0 = same as AutoFillRange. Synced from server when LockConfig is on.", range));
+            ScarecrowChestRange = file.Bind("3 - Craft", "ScarecrowChestRange", 0f, new ConfigDescription(
+                "Scarecrow → chest range in meters: chests that supply its seeds and take its harvest. 0 = same as AutoFillChestRange (and that one 0 = AutoFillRange). Synced from server when LockConfig is on.", range));
+            AutomationLoadedArea = file.Bind("3 - Craft", "AutomationLoadedArea", true,
+                "Auto-fill, auto-store and scarecrows work everywhere in the area loaded around a player, not only within AutoFillRange / StoreRange / ScarecrowRange of the player. Stations and ground items still only use chests within their own chest range. Off = the player ranges as before. Synced from server when LockConfig is on.");
             IntakeInterval = file.Bind("2 - Store", "IntakeInterval", 5f,
                 "Seconds between automatic scans for ground items. Lower = snappier, higher = less CPU.");
             MaxTransfersPerTick = file.Bind("1 - General", "MaxTransfersPerTick", 8,
@@ -160,6 +174,12 @@ namespace StoreAndCraft
                 "After an update, Hugin (the raven) visits once and tells you what is new in StoreAndCraft. Local only, not synced.");
             ArmorStandSwap = file.Bind("1 - General", "ArmorStandSwap", true,
                 "Armor stand: [E] swaps the armor on the stand with the armor you wear (helmet, chest, legs, cape) instead of dropping it on the ground. Off = vanilla. Synced from server when LockConfig is on.");
+            ShowBagSortButtons = file.Bind("1 - General", "ShowBagSortButtons", true,
+                "Show the Stack and Sort buttons on top of your inventory. Local only, not synced.");
+            ShowChestSortButtons = file.Bind("1 - General", "ShowChestSortButtons", true,
+                "Show the Stack and Sort buttons next to Take all on the chest panel. Local only, not synced.");
+            ShowStationNotices = file.Bind("1 - General", "ShowStationNotices", true,
+                "Show the notice above a station when its output has nowhere to go: Chest full, No linked chest, No chest nearby. Only the text: a smelter still waits while its chest is full. Local only, not synced.");
             ReleaseNewsSeen = file.Bind("1 - General", "ReleaseNewsSeen", "",
                 "Set automatically: the StoreAndCraft version whose news Hugin already told you. Do not edit.");
 
@@ -191,17 +211,72 @@ namespace StoreAndCraft
             return Mathf.Max(CraftRange.Value, AutoFillRange.Value);
         }
 
-        /// <summary>Station → chest reach for auto-fill / auto-store (0 falls back to AutoFillRange).</summary>
+        /// <summary>Station → chest reach for auto-fill / auto-store: the whole loaded area when AutomationLoadedArea is on.</summary>
         public float AutoFillChestReach()
+        {
+            return AutomationLoadedArea.Value ? LoadedAreaReach : AutoFillChestMeters();
+        }
+
+        /// <summary>Station → chest range in meters as set (0 falls back to AutoFillRange). Network checks use this.</summary>
+        public float AutoFillChestMeters()
         {
             float chest = AutoFillChestRange.Value;
             return chest > 0f ? chest : AutoFillRange.Value;
         }
 
-        /// <summary>Farthest player → chest distance auto-fill can need (player → station → chest).</summary>
+        /// <summary>Player → scarecrow reach (0 falls back to AutoFillRange).</summary>
+        public float ScarecrowReach()
+        {
+            return ScarecrowRange.Value > 0f ? ScarecrowRange.Value : AutoFillRange.Value;
+        }
+
+        /// <summary>Scarecrow → chest reach for its seeds and harvest: the whole loaded area when AutomationLoadedArea is on.</summary>
+        public float ScarecrowChestReach()
+        {
+            return AutomationLoadedArea.Value ? LoadedAreaReach : ScarecrowChestMeters();
+        }
+
+        /// <summary>Scarecrow → chest range in meters as set (0 falls back to the station chest range). Network checks use this.</summary>
+        public float ScarecrowChestMeters()
+        {
+            return ScarecrowChestRange.Value > 0f ? ScarecrowChestRange.Value : AutoFillChestMeters();
+        }
+
+        // Player → chest reaches the features use: the whole loaded area when AutomationLoadedArea is on,
+        // else the slider value. Network checks (TransferService) keep the slider values plus the loaded-area check.
+        public float DumpReach() { return Reach(PlayerDumpRange); }
+        public float CraftReach() { return Reach(CraftRange); }
+        public float StorageReach() { return Reach(StorageRange); }
+        public float StoreReach() { return Reach(StoreRange); }
+
+        private float Reach(ConfigEntry<float> meters)
+        {
+            return AutomationLoadedArea.Value ? LoadedAreaReach : meters.Value;
+        }
+
+        /// <summary>
+        /// Distance that counts as "the whole loaded area". Valheim loads a square of zones around the player (up to
+        /// about 180 m from the player to a corner, the square is about 190 m wide), so two loaded points (station and
+        /// chest) can be up to about 270 m apart: 400 m covers it with room to spare.
+        /// </summary>
+        public const float LoadedAreaReach = 400f;
+
+        /// <summary>Player → station reach for auto-fill: the whole loaded area when AutomationLoadedArea is on.</summary>
+        public float AutoFillPlayerReach()
+        {
+            return AutomationLoadedArea.Value ? LoadedAreaReach : AutoFillRange.Value;
+        }
+
+        /// <summary>Player → scarecrow reach: the whole loaded area when AutomationLoadedArea is on.</summary>
+        public float ScarecrowPlayerReach()
+        {
+            return AutomationLoadedArea.Value ? LoadedAreaReach : ScarecrowReach();
+        }
+
+        /// <summary>Farthest player → chest distance auto-fill can need (player → station / scarecrow → chest).</summary>
         public float AutoFillPlayerToChestRange()
         {
-            return AutoFillRange.Value + AutoFillChestReach();
+            return Mathf.Max(AutoFillRange.Value + AutoFillChestMeters(), ScarecrowReach() + ScarecrowChestMeters());
         }
 
         public float MaxGameplayRange()
@@ -213,6 +288,7 @@ namespace StoreAndCraft
                 DisplayRange.Value,
                 CraftRange.Value,
                 AutoFillRange.Value,
+                ScarecrowReach(),
                 FeedTroughRange.Value);
         }
 
@@ -254,6 +330,11 @@ namespace StoreAndCraft
             // v21
             pkg.Write(TorchAutoFillOverride.Value);
             pkg.Write(ArmorStandSwap.Value);
+            // Appended later, same protocol: a reader only takes them when they are there (an older server sends less).
+            pkg.Write(ScarecrowRange.Value);
+            pkg.Write(ScarecrowChestRange.Value);
+            // v22
+            pkg.Write(AutomationLoadedArea.Value);
         }
 
         public void ReadFromPackage(ZPackage pkg)
@@ -294,6 +375,14 @@ namespace StoreAndCraft
             // v21
             TorchAutoFillOverride.Value = pkg.ReadBool();
             ArmorStandSwap.Value = pkg.ReadBool();
+            // Appended later, same protocol (an older server sends less, an older client ignores the rest).
+            if (pkg.GetPos() < pkg.Size())
+                ScarecrowRange.Value = pkg.ReadSingle();
+            if (pkg.GetPos() < pkg.Size())
+                ScarecrowChestRange.Value = pkg.ReadSingle();
+            // v22
+            if (pkg.GetPos() < pkg.Size())
+                AutomationLoadedArea.Value = pkg.ReadBool();
         }
     }
 }

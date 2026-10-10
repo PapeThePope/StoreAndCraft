@@ -1,5 +1,47 @@
 # Changelog
 
+## 1.5.0
+
+### NEW FEATURES
+- **Chest setting "Only build/craft"**: you fill it (by hand or with dump), nothing else goes in by itself (no ground items, no station output, stations never take from it), only crafting and building take from it. It replaces "Manual fill": chests that had Manual fill count as "Only stations" now
+- **Stations wait when their chest cannot take the product**: smelter, blast furnace, kiln, eitr refinery, windmill and spinning wheel with auto-store (**N**) switch off while the chests are full or no chest with their link is in reach, and a notice shows above them: "Chest full", "No linked chest", "No chest nearby" (the last one only shows, the station keeps running)
+- The same notices above the grill (its food still goes to the ground, so it does not burn), beehive, sap extractor, fermenter and scarecrow
+- A chest shows "Status: Full" / "Status: Almost full" when you look at it. It counts how full the stacks are, not only the slots: a slot with one wood still has room for more
+- **Ice, Royal Jelly and Crystal Beehive**: craft an Ice Queen Bee (Queen Bee + Ice), a Royal Jelly Queen Bee (Queen Bee + Royal Jelly) or a Crystal Queen Bee (Queen Bee + Crystal) at the workbench, then build the white / yellow / violet beehive with it (the bees around it get its colour). It makes ice / royal jelly / crystal at the same pace as honey, and auto-store works like for honey
+- **Plantable berry bushes and wild herbs** (Cultivator): Raspberry, Blueberry and Cloudberry bushes, Dandelion, Thistle, Fiddlehead and Smoke puff. A bush sapling costs 5 berries, a herb (Dandelion, Thistle, Fiddlehead, Smoke puff) 1 and gives 3 per harvest, the plant stands there grown right away (as if just picked) and grows its harvest back, and the scarecrow plants and harvests them too (Raspberries (bush) ... in its crop list)
+- **Scarecrow patterns**: pick several crops (each gets a colour) and draw on a grid which crop grows where, so you can lay out a garden. Every kind of plant is harvested once all plants of that kind are ripe, the grid spacing follows the biggest plant
+- **Scarecrow ranges**: the scarecrow has its own ranges, player → scarecrow and scarecrow → chest (mod manager F10, 0 = same as auto-fill)
+- **Scarecrow**: Kale and Oat are in the crop list, and **Kale seeds (for seeds)** plants kale seeds to grow more kale seeds
+- **Everything works in the whole loaded base** (mod manager F10, on by default): dump, middle-click, crafting / building from chests, take stack, search, auto-fill, station output, auto-store of ground items and the scarecrow use every chest in the area that is loaded around you, no ranges to set. Items still only go into chests that already hold them (and links / chest modes still apply). Each item type remembers the chest it went into last and goes there first, the base is only searched again when that chest is full. Switch it off to use ranges in meters (now under Advanced). Storage Displays keep their own range
+- **Storage Display minimum**: every item tile in the display filter (**E**) has a small **Min** field. When the display shows less than that, the count turns red (empty or 0 = off). Each display keeps its own minimums
+- **PierSupports** (other mod): the extra pier segments it builds down to the ground are paid from your chests too, like any other piece
+
+### UI IMPROVEMENTS
+- Mod manager (F10): the **Stack / Sort buttons** can be switched off, separately for the inventory and for the chest
+- Mod manager (F10): the notices above stations can be switched off
+- Mod manager (F10): **Save** works without admin rights too (it saves the settings for your own PC)
+- **Activity log**: lines leave one after another from the top with a soft fade (each one stays readable for at least 3 s) instead of all standing for 12 s. Renamed chests show as Chest[Name], e.g. Chest[Tin Ore]
+- The **Storage Display range** is only set on each display (**Alt+R**); the default slider in the mod manager (F10) is gone. A display without its own range uses 10 m
+- Bloodgold is listed under Metals in the Storage Display filter
+- Kale, Oat and their seeds are listed under Crops & Seeds in the Storage Display filter
+
+### FIX
+- **Storage Displays** no longer cause short stutters when many chests change: the work is split over several frames, displays that show the same chests share it, and a display that is slow to redraw waits a little longer before the next redraw
+- The crafting list counts the items in your chests with much less work, also with large chest ranges
+- Storage Displays update with much less work when chests change (each chest is only read again when it changed)
+- Auto-fill spreads its station checks over several frames instead of doing them all at once
+- Storage Displays show their items only within 20 m (the board itself stays visible), and displays you cannot see (out of view or farther away) no longer recount and redraw; they update as soon as you look at them
+- Dump, middle-click, take stack, search, station output and auto-store only look at chests that hold the item, and no longer reload every chest in range before a dump (Valheim keeps loaded chests up to date by itself)
+- Big bases run smoother: Storage Displays, chest searches, auto-stack, auto-store and station checks do much less work per frame and create less garbage (fewer short stutters)
+- Items on the ground that do not fit into a chest are tried less often
+- **Scarecrow**: crops that only grew in one biome (Flax, Barley, Onion, Turnip ...) now grow on any cultivated ground inside the scarecrow's grid
+- **Auto-stack** (and the Stack / Sort buttons) no longer swap a 9/50 and a 50/50 stack with each other again and again; only partial stacks are merged
+- Displays that stayed empty for a while after joining a server look for newly loaded chests more often
+- If the display models cannot be loaded (for example a damaged upload on the server), the log now says so
+- **Auto-store of ground items** no longer takes fish: live fish in the sea or a fish pond stay where they are (pick fish up by hand)
+- Saving in the mod manager (F10) on a server no longer shows a long yellow message with all ranges
+- **Storage Displays** no longer share pages with other displays that have the same selection: every display shows all of its items by itself (after changing a layout some items were missing until the range was changed)
+
 ## 1.4.2
 
 ### NEW FEATURES

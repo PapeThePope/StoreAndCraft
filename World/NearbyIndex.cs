@@ -20,7 +20,54 @@ namespace StoreAndCraft
         private static Vector3 _lastOrigin;
         private static int _cacheFrame = -1;
         private static int _storeForceBudget;
-        private static readonly Dictionary<string, int> CountCache = new Dictionary<string, int>();
+        /// <summary>
+        /// Cache key of one count in this frame. A struct instead of a built string: the crafting list asks for
+        /// hundreds of counts per frame, and a string key allocated several strings per call.
+        /// Origin rounds to 0.1 m and range to 0.01 m, as the old text key did.
+        /// </summary>
+        private struct CountKey : System.IEquatable<CountKey>
+        {
+            public string Name;
+            public int Quality;
+            public bool LeaveOne;
+            public int Range100;
+            public int Link;
+            public int X10;
+            public int Y10;
+            public int Z10;
+
+            public bool Equals(CountKey o)
+            {
+                return Quality == o.Quality && LeaveOne == o.LeaveOne && Range100 == o.Range100 && Link == o.Link
+                    && X10 == o.X10 && Y10 == o.Y10 && Z10 == o.Z10 && Name == o.Name;
+            }
+
+            public override bool Equals(object obj)
+            {
+                return obj is CountKey && Equals((CountKey)obj);
+            }
+
+            public override int GetHashCode()
+            {
+                unchecked
+                {
+                    int h = Name != null ? Name.GetHashCode() : 0;
+                    h = h * 31 + Quality;
+                    h = h * 31 + (LeaveOne ? 1 : 0);
+                    h = h * 31 + Range100;
+                    h = h * 31 + Link;
+                    h = h * 31 + X10;
+                    h = h * 31 + Y10;
+                    h = h * 31 + Z10;
+                    return h;
+                }
+            }
+        }
+
+        private static readonly Dictionary<CountKey, int> CountCache = new Dictionary<CountKey, int>();
+        private static readonly Dictionary<CountKey, ChestSummary.Aggregate> AggCache = new Dictionary<CountKey, ChestSummary.Aggregate>();
+        private static readonly Dictionary<CountKey, int> AggSeen = new Dictionary<CountKey, int>();
+        private static readonly List<Container> CountChests = new List<Container>(64);
         private static readonly List<Container> CountScratch = new List<Container>(32);
         private const float RescanMove = 2.5f;
         private const float IdleRescanSeconds = 5f;
@@ -41,6 +88,12 @@ namespace StoreAndCraft
             get { return Cached; }
         }
 
+        /// <summary>Every registered container (loaded), for indexes that cover the whole registry.</summary>
+        public static IReadOnlyList<Container> AllRegistered
+        {
+            get { return Registered; }
+        }
+
         public static void Register(Container container)
         {
             if (container == null)
@@ -49,6 +102,7 @@ namespace StoreAndCraft
             if (!RegisteredIds.Add(id))
                 return;
             Registered.Add(container);
+            ItemIndex.MarkDirty(container);
         }
 
         public static void Unregister(Container container)
@@ -59,13 +113,17 @@ namespace StoreAndCraft
             if (!RegisteredIds.Remove(id))
                 return;
             Registered.Remove(container);
+            ItemIndex.Remove(container);
+            ChestSummary.Forget(container.GetInventory());
             LastInventoryLoad.Remove(id);
             EmptyProbeUntil.Remove(id);
         }
 
         public static void BootstrapExisting()
         {
-            Container[] all = Resources.FindObjectsOfTypeAll<Container>();
+            // Scene objects only (inactive ones included), not every prefab / asset like FindObjectsOfTypeAll:
+            // the loop below drops everything outside a scene anyway. Runs at Game.Start and on every spawn.
+            Container[] all = Object.FindObjectsByType<Container>(FindObjectsInactive.Include, FindObjectsSortMode.None);
             if (all == null)
                 return;
             foreach (Container c in all)
@@ -144,7 +202,54 @@ namespace StoreAndCraft
         {
             if (Plugin.Settings == null)
                 return 20f;
+            if (Plugin.Settings.AutomationLoadedArea.Value)
+                return ModConfig.LoadedAreaReach;
             return Plugin.Settings.MaxGameplayRange();
+        }
+
+        /// <summary>The same checks CollectNear does for one chest (for a remembered chest that skips the search).</summary>
+        public static bool Usable(Container container, Vector3 origin, float range)
+        {
+            if (IsDestroyed(container))
+                return false;
+            if (ContainerFilter.SqrDistance(origin, container.transform.position) > range * range)
+                return false;
+            return ReadyAndUsable(container);
+        }
+
+        private struct UsableEntry
+        {
+            public bool Usable;
+            public uint Revision;
+            public float Until;
+        }
+
+        private static readonly Dictionary<int, UsableEntry> UsableCache = new Dictionary<int, UsableEntry>();
+        private const float UsableSeconds = 1f;
+
+        /// <summary>
+        /// IsReady + ContainerFilter.PlayerMayUse (valid, not fully ignored, ward access), remembered per chest:
+        /// it runs for every chest of every chest search. A name / mode change bumps the chest ZDO revision and is
+        /// seen at once (also from other players); a ward switched on / off shows within UsableSeconds.
+        /// PlayerMayUse does not depend on the origin (the ward check uses the chest position).
+        /// </summary>
+        private static bool ReadyAndUsable(Container container)
+        {
+            ZNetView nv = Refs.View(container);
+            if (nv == null || !nv.IsValid())
+                return false;
+            ZDO zdo = nv.GetZDO();
+            uint rev = zdo != null ? zdo.DataRevision : 0u;
+            int id = container.GetInstanceID();
+            float now = Time.unscaledTime;
+            UsableEntry e;
+            if (UsableCache.TryGetValue(id, out e) && e.Revision == rev && now < e.Until)
+                return e.Usable;
+            bool usable = ContainerFilter.PlayerMayUse(container, container.transform.position);
+            if (UsableCache.Count > 8192)
+                UsableCache.Clear();
+            UsableCache[id] = new UsableEntry { Usable = usable, Revision = rev, Until = now + UsableSeconds };
+            return usable;
         }
 
         /// <summary>
@@ -225,6 +330,7 @@ namespace StoreAndCraft
         {
             Cached.Clear();
             CountCache.Clear();
+            ChestSummary.Version++;
             _cacheFrame = Time.frameCount;
             if (range <= 0f)
                 return;
@@ -240,13 +346,10 @@ namespace StoreAndCraft
                     continue;
                 }
 
-                if (!IsReady(container))
-                    continue;
-
                 if (ContainerFilter.SqrDistance(origin, container.transform.position) > rangeSq)
                     continue;
 
-                if (!ContainerFilter.PlayerMayUse(container, origin))
+                if (!ReadyAndUsable(container))
                     continue;
 
                 int id = container.GetInstanceID();
@@ -280,13 +383,10 @@ namespace StoreAndCraft
 
                 Register(container);
 
-                if (!IsReady(container))
-                    continue;
-
                 if (ContainerFilter.SqrDistance(origin, container.transform.position) > rangeSq)
                     continue;
 
-                if (!ContainerFilter.PlayerMayUse(container, origin))
+                if (!ReadyAndUsable(container))
                     continue;
 
                 int id = container.GetInstanceID();
@@ -317,11 +417,11 @@ namespace StoreAndCraft
             for (int i = 0; i < Registered.Count; i++)
             {
                 Container container = Registered[i];
-                if (IsDestroyed(container) || !IsReady(container))
+                if (IsDestroyed(container))
                     continue;
                 if (ContainerFilter.SqrDistance(origin, container.transform.position) > rangeSq)
                     continue;
-                if (!ContainerFilter.PlayerMayUse(container, origin))
+                if (!ReadyAndUsable(container))
                     continue;
                 dest.Add(container);
             }
@@ -367,7 +467,7 @@ namespace StoreAndCraft
                 bool usable;
                 if (!usableMemo.TryGetValue(id, out usable))
                 {
-                    usable = IsReady(container) && ContainerFilter.PlayerMayUse(container, origin);
+                    usable = ReadyAndUsable(container);
                     usableMemo[id] = usable;
                 }
                 if (usable)
@@ -395,6 +495,7 @@ namespace StoreAndCraft
         public static void InvalidateCounts()
         {
             CountCache.Clear();
+            ChestSummary.Version++;
         }
 
         private static readonly Dictionary<string, int> SnapshotScratch = new Dictionary<string, int>();
@@ -547,14 +648,94 @@ namespace StoreAndCraft
 
             int useLink = linkId == int.MinValue ? StationLink.ActiveId : linkId;
             float useRange = range > 0f ? range : StationFeed.ActivePullRange();
-            string key = sharedName + "|" + quality + "|" + (leaveOne ? 1 : 0) + "|"
-                + useRange.ToString("0.##") + "|L" + useLink
-                + "|" + origin.x.ToString("0.#") + "," + origin.y.ToString("0.#") + "," + origin.z.ToString("0.#");
+            // Whole loaded base: every origin sees the same chests (PlayerMayUse ignores the origin), so all
+            // stations / the player share one count per link instead of one per position.
+            bool wholeBase = useRange >= ModConfig.LoadedAreaReach && Plugin.Settings != null && Plugin.Settings.AutomationLoadedArea.Value;
+            var key = new CountKey
+            {
+                Name = sharedName,
+                Quality = quality,
+                LeaveOne = leaveOne,
+                Range100 = Mathf.RoundToInt(useRange * 100f),
+                Link = useLink,
+                X10 = wholeBase ? 0 : Mathf.RoundToInt(origin.x * 10f),
+                Y10 = wholeBase ? 0 : Mathf.RoundToInt(origin.y * 10f),
+                Z10 = wholeBase ? 0 : Mathf.RoundToInt(origin.z * 10f)
+            };
             int cached;
             if (CountCache.TryGetValue(key, out cached))
                 return cached;
 
-            int total = 0;
+            // Origin standing still since an earlier frame: one pass fills a chest-set total and every
+            // ingredient after that is a lookup. A moving origin would rebuild it each frame, so it uses
+            // the plain per-name loop instead.
+            var aggKey = key;
+            aggKey.Name = null;
+            aggKey.Quality = StationFeed.PullOriginOverride.HasValue ? 1 : 0;
+            ChestSummary.Aggregate agg;
+            AggCache.TryGetValue(aggKey, out agg);
+            int total;
+            if (agg != null && agg.IsCurrent)
+            {
+                total = agg.Get(sharedName, quality);
+            }
+            else if (agg != null || SeenBefore(aggKey))
+            {
+                if (agg == null)
+                {
+                    if (AggCache.Count >= 32)
+                        AggCache.Clear();
+                    agg = new ChestSummary.Aggregate();
+                    AggCache[aggKey] = agg;
+                }
+                CollectCountChests(origin, useRange, useLink, CountChests);
+                agg.Begin();
+                foreach (Container c in CountChests)
+                    agg.AddChest(c, c.GetInventory(), leaveOne);
+                agg.End();
+                CountChests.Clear();
+                total = agg.Get(sharedName, quality);
+            }
+            else
+            {
+                total = 0;
+                CollectCountChests(origin, useRange, useLink, CountChests);
+                foreach (Container c in CountChests)
+                {
+                    int n = c.GetInventory().CountItems(sharedName, quality, true);
+                    n -= PendingChestDebit.Of(c, sharedName);
+                    if (n < 0)
+                        n = 0;
+                    if (leaveOne && n > 0 && ItemIds.ShouldLeaveOne(true, sharedName))
+                        n -= 1;
+                    if (n > 0)
+                        total += n;
+                }
+                CountChests.Clear();
+            }
+
+            CountCache[key] = total;
+            return total;
+        }
+
+        /// <summary>True when this chest-set key was already asked for in an earlier frame.</summary>
+        private static bool SeenBefore(CountKey aggKey)
+        {
+            int frame;
+            bool seen = AggSeen.TryGetValue(aggKey, out frame) && frame != Time.frameCount;
+            if (!seen && !AggSeen.ContainsKey(aggKey))
+            {
+                if (AggSeen.Count >= 256)
+                    AggSeen.Clear();
+                AggSeen[aggKey] = Time.frameCount;
+            }
+            return seen;
+        }
+
+        /// <summary>Chests CountItem counts: allowed by the link, inside range, inventory loaded.</summary>
+        private static void CollectCountChests(Vector3 origin, float useRange, int useLink, List<Container> into)
+        {
+            into.Clear();
             float craftSq = useRange * useRange;
             // Auto-fill counts around the station; the player-centered cache can miss chests
             // behind a station at the edge of range (Consume already uses CollectNear).
@@ -577,31 +758,13 @@ namespace StoreAndCraft
                 // even though the ZDO still has items — force once when local inv is empty.
                 Inventory inv = c.GetInventory();
                 if (inv == null || inv.NrOfItems() <= 0)
-                {
                     EnsureInventory(c, force: true);
-                    inv = c.GetInventory();
-                }
                 else
-                {
                     EnsureInventory(c);
-                    inv = c.GetInventory();
-                }
 
-                if (inv == null)
-                    continue;
-
-                int n = inv.CountItems(sharedName, quality, true);
-                n -= PendingChestDebit.Of(c, sharedName);
-                if (n < 0)
-                    n = 0;
-                if (leaveOne && n > 0 && ItemIds.ShouldLeaveOne(true, sharedName))
-                    n -= 1;
-                if (n > 0)
-                    total += n;
+                if (c.GetInventory() != null)
+                    into.Add(c);
             }
-
-            CountCache[key] = total;
-            return total;
         }
 
         private static void PruneDead()
@@ -617,12 +780,17 @@ namespace StoreAndCraft
         {
             Container c = Registered[index];
             Registered.RemoveAt(index);
+            ItemIndex.Remove(c);
+            // GetInventory only returns a field: safe on a destroyed container too.
+            if ((object)c != null)
+                ChestSummary.Forget(c.GetInventory());
             if (c != null)
             {
                 int id = c.GetInstanceID();
                 RegisteredIds.Remove(id);
                 LastInventoryLoad.Remove(id);
                 EmptyProbeUntil.Remove(id);
+                UsableCache.Remove(id);
             }
             else if (RegisteredIds.Count != Registered.Count)
             {
@@ -640,14 +808,6 @@ namespace StoreAndCraft
         private static bool IsDestroyed(Container container)
         {
             return container == null;
-        }
-
-        private static bool IsReady(Container container)
-        {
-            if (container == null)
-                return false;
-            ZNetView nv = Refs.View(container);
-            return nv != null && nv.IsValid();
         }
     }
 }

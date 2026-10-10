@@ -11,21 +11,25 @@ namespace StoreAndCraft
                 return null;
 
             float range = Plugin.Settings != null
-                ? Plugin.Settings.PlayerDumpRange.Value
+                ? Plugin.Settings.DumpReach()
                 : 8f;
             Container best = null;
             float bestDist = float.MaxValue;
+            // Must hold the item already: the item index skips every chest that has none (no load, no scan).
+            string shared = mustExist ? ItemIds.SharedName(item) : null;
 
             foreach (Container chest in NearbyIndex.Current)
             {
                 if (chest == null || ChestNames.IsNoDump(chest))
+                    continue;
+                if (mustExist && !ItemIndex.MightHold(chest, shared))
                     continue;
 
                 float d = ContainerFilter.Distance(origin, chest.transform.position);
                 if (d > range)
                     continue;
 
-                if (!CanAccept(chest, item, origin, mustExist))
+                if (!CanAccept(chest, item, origin, mustExist, fromPlayer: true))
                     continue;
 
                 if (d < bestDist)
@@ -38,13 +42,18 @@ namespace StoreAndCraft
             return best;
         }
 
-        public static bool CanAccept(Container chest, ItemDrop.ItemData item, Vector3 from, bool mustExist)
+        /// <param name="fromPlayer">The player's own dump / store one item (Only build/craft chests take it).</param>
+        public static bool CanAccept(Container chest, ItemDrop.ItemData item, Vector3 from, bool mustExist, bool fromPlayer = false)
         {
             if (chest == null || item == null)
                 return false;
 
             // Never dump / auto-store into crypt / house-spawn / other world chests.
             if (!ContainerFilter.IsPlayerBuiltStorage(chest))
+                return false;
+
+            // Ignore: never. Only build/craft: nothing is put in automatically, but the player's dump may fill it.
+            if (fromPlayer ? ChestNames.BlocksDump(chest) : ChestNames.BlocksDeposit(chest))
                 return false;
 
             NearbyIndex.EnsureInventory(chest);
@@ -62,6 +71,53 @@ namespace StoreAndCraft
             return AmountThatFits(inv, item) > 0;
         }
 
+        private static bool[] _cells = new bool[0];
+
+        /// <summary>
+        /// What Inventory.AddItem really manages: units that merge into a stack with the same name, quality and
+        /// world level, plus a free grid cell for the rest (the rest of one drop always fits one cell).
+        /// </summary>
+        private static int ExactFit(Inventory inv, ItemDrop.ItemData item)
+        {
+            int w = inv.GetWidth();
+            int h = inv.GetHeight();
+            int cells = w * h;
+            if (cells <= 0 || item.m_shared == null)
+                return item.m_stack;
+            if (_cells.Length < cells)
+                _cells = new bool[cells];
+            System.Array.Clear(_cells, 0, cells);
+
+            int max = Mathf.Max(1, item.m_shared.m_maxStackSize);
+            int merge = 0;
+            int used = 0;
+            List<ItemDrop.ItemData> all = inv.GetAllItems();
+            for (int i = 0; i < all.Count; i++)
+            {
+                ItemDrop.ItemData it = all[i];
+                if (it == null || it.m_shared == null)
+                    continue;
+                Vector2i p = it.m_gridPos;
+                if (p.x >= 0 && p.y >= 0 && p.x < w && p.y < h)
+                {
+                    int idx = p.y * w + p.x;
+                    if (!_cells[idx])
+                    {
+                        _cells[idx] = true;
+                        used++;
+                    }
+                }
+                if (max > 1 && it.m_shared.m_name == item.m_shared.m_name && it.m_quality == item.m_quality
+                    && it.m_stack < it.m_shared.m_maxStackSize && (float)it.m_worldLevel == (float)item.m_worldLevel)
+                    merge += it.m_shared.m_maxStackSize - it.m_stack;
+            }
+
+            bool freeCell = cells - used >= 1;
+            if (max > 1)
+                return merge >= item.m_stack || freeCell ? item.m_stack : merge;
+            return freeCell ? item.m_stack : 0;
+        }
+
         /// <summary>
         /// How many of this stack the chest can take (fill existing stacks, then empty slots).
         /// Partial is OK: 28 wood into a 26/50 stack stores 24 and leaves 4.
@@ -72,6 +128,13 @@ namespace StoreAndCraft
                 return 0;
 
             int want = item.m_stack;
+
+            // Valheim's CanAddItem counts free slots and stack space loosely (any quality, slots outside the grid).
+            // AddItem is stricter and logs "Trying to add item to occupied slot" when it fails: never promise more than it can do.
+            want = Mathf.Min(want, ExactFit(inv, item));
+            if (want <= 0)
+                return 0;
+
             if (inv.CanAddItem(item, want))
                 return want;
 
@@ -104,6 +167,8 @@ namespace StoreAndCraft
             foreach (Container chest in NearbyIndex.Within(origin, range))
             {
                 if (chest == null || ChestNames.IsFullyIgnored(chest))
+                    continue;
+                if (!ItemIndex.MightHold(chest, sharedName))
                     continue;
 
                 NearbyIndex.EnsureInventory(chest);

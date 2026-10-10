@@ -20,6 +20,11 @@ namespace StoreAndCraft
         private static readonly Dictionary<string, float> ExpireAt = new Dictionary<string, float>();
         /// <summary>Raw chest count we expect after the owner applies all pending debit.</summary>
         private static readonly Dictionary<string, int> ExpectedMax = new Dictionary<string, int>();
+        // Of() runs for every chest of every count: chests that have nothing reserved answer without building a key.
+        // May hold ids whose reservation is gone (then the normal lookup answers 0); emptied with Amounts.
+        private static readonly HashSet<int> ChestsWithDebit = new HashSet<int>();
+        private static readonly List<string> DeadScratch = new List<string>();
+        private static int _prunedFrame = -1;
 
         public static void Add(Container chest, string shared, int amount)
         {
@@ -27,6 +32,7 @@ namespace StoreAndCraft
                 return;
 
             string key = Key(chest, shared);
+            ChestsWithDebit.Add(chest.GetInstanceID());
             int have;
             Amounts.TryGetValue(key, out have);
             int total = have + amount;
@@ -43,6 +49,8 @@ namespace StoreAndCraft
         public static int Of(Container chest, string shared)
         {
             if (chest == null || string.IsNullOrEmpty(shared) || Amounts.Count == 0)
+                return 0;
+            if (!ChestsWithDebit.Contains(chest.GetInstanceID()))
                 return 0;
 
             Prune();
@@ -115,10 +123,18 @@ namespace StoreAndCraft
         private static void Prune()
         {
             if (ExpireAt.Count == 0)
+            {
+                ChestsWithDebit.Clear();
                 return;
+            }
+            // Expiry has frame resolution anyway: once per frame is enough (Of runs hundreds of times per frame).
+            if (_prunedFrame == Time.frameCount)
+                return;
+            _prunedFrame = Time.frameCount;
 
             float now = Time.unscaledTime;
-            var dead = new List<string>();
+            List<string> dead = DeadScratch;
+            dead.Clear();
             foreach (KeyValuePair<string, float> pair in ExpireAt)
             {
                 if (now >= pair.Value)

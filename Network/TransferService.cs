@@ -109,7 +109,8 @@ namespace StoreAndCraft
         {
             if (chest == null || from == null || item == null || amount <= 0)
                 return false;
-            if (ChestNames.BlocksDeposit(chest))
+            // The player's dump / store one item: Only build/craft chests take it too (see ChestNames.BlocksDump).
+            if (ChestNames.BlocksDump(chest))
                 return false;
             if (!ContainerFilter.IsPlayerBuiltStorage(chest))
                 return false;
@@ -1159,7 +1160,11 @@ namespace StoreAndCraft
                 return false;
             if (!PrivateArea.CheckAccess(container.transform.position, 0f, false, true))
                 return false;
-            if (!RequirementBridge.SenderInRange(sender, container.transform.position, range))
+            // AutomationLoadedArea: auto-fill / auto-store of a far station runs on the player who has it
+            // loaded, so a chest in the sender's loaded area is enough.
+            if (!RequirementBridge.SenderInRange(sender, container.transform.position, range)
+                && !(Plugin.Settings != null && Plugin.Settings.AutomationLoadedArea.Value
+                    && RequirementBridge.SenderLoadedArea(sender, container.transform.position)))
                 return false;
             return true;
         }

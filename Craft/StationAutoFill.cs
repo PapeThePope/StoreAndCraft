@@ -16,11 +16,21 @@ namespace StoreAndCraft
     internal static class StationAutoFill
     {
         public const string ZdoKey = "SAC_autoFill";
+        public static readonly int ZdoKeyHash = ZdoKey.GetStableHashCode();
         private const float Interval = 2.5f;
         private const float QuietEmptySeconds = 25f;
         private const int MaxBurstsPerPulse = 4;
         /// <summary>Cap how many needy stations we evaluate per pulse (after range/IsOn filters).</summary>
         private const int MaxChecksPerPulse = 12;
+        /// <summary>
+        /// Time one frame may spend on station checks. When it is used up the pulse goes on next frame
+        /// at the same station, with the pulse's burst / check counts carried over (same limits per pulse).
+        /// </summary>
+        private const float FrameBudgetMs = 2f;
+        private static long _pulseFrameEnd;
+        private static bool _overBudget;
+        private static int _carryBursts = -1;
+        private static int _carryChecks;
 
         internal static int Silence;
 
@@ -245,7 +255,7 @@ namespace StoreAndCraft
         {
             if (nv == null || !nv.IsValid() || nv.GetZDO() == null)
                 return false;
-            return nv.GetZDO().GetInt(ZdoKey, -1) > 0;
+            return nv.GetZDO().GetInt(ZdoKeyHash, -1) > 0;
         }
 
         /// <summary>World Override: auto-fill is forced on for this torch whatever its own flag says.</summary>
@@ -261,9 +271,9 @@ namespace StoreAndCraft
             ZNetView nv = piece != null ? piece.GetComponent<ZNetView>() : null;
             if (nv == null || !nv.IsValid() || nv.GetZDO() == null || !nv.IsOwner())
                 return;
-            if (Plugin.Settings == null || !IsTorch(nv) || nv.GetZDO().GetInt(ZdoKey, -1) >= 0)
+            if (Plugin.Settings == null || !IsTorch(nv) || nv.GetZDO().GetInt(ZdoKeyHash, -1) >= 0)
                 return;
-            nv.GetZDO().Set(ZdoKey, Plugin.Settings.TorchAutoFillDefault.Value ? 1 : 0);
+            nv.GetZDO().Set(ZdoKeyHash, Plugin.Settings.TorchAutoFillDefault.Value ? 1 : 0);
         }
 
         private static readonly Dictionary<int, bool> TorchCache = new Dictionary<int, bool>();
@@ -448,7 +458,7 @@ namespace StoreAndCraft
                 nv.ClaimOwnership();
 
             bool next = !StoredOn(nv);
-            nv.GetZDO().Set(ZdoKey, next ? 1 : 0);
+            nv.GetZDO().Set(ZdoKeyHash, next ? 1 : 0);
             ClearQuiet(smelter);
             ClearQuiet(oven);
             ClearQuiet(fermenter);
@@ -491,7 +501,7 @@ namespace StoreAndCraft
             Player player = Player.m_localPlayer;
             if (player == null)
                 return;
-            float range = Plugin.Settings.AutoFillRange.Value;
+            float range = Plugin.Settings.AutoFillPlayerReach();
             if (ContainerFilter.SqrDistance(player.transform.position, station.transform.position) > range * range)
                 return;
             if (!StationNeedsFill(station))
@@ -501,6 +511,7 @@ namespace StoreAndCraft
 
         public static void Tick()
         {
+            FlushPendingWake();
             if (!StationFeed.Ready())
                 return;
 
@@ -511,6 +522,10 @@ namespace StoreAndCraft
             if (Time.unscaledTime < _nextPulse)
                 return;
             _nextPulse = Time.unscaledTime + Interval;
+            bool resumed = _carryBursts >= 0;
+            int carryBursts = resumed ? _carryBursts : 0;
+            int carryChecks = resumed ? _carryChecks : 0;
+            _carryBursts = -1;
             StationMissingLabel.Validate();
 
             // Nested Push/Pop can leave ActiveId stuck if a path returns early.
@@ -522,7 +537,7 @@ namespace StoreAndCraft
                 _nextPrune = Time.unscaledTime + 10f;
             }
 
-            float range = Plugin.Settings.AutoFillRange.Value;
+            float range = Plugin.Settings.AutoFillPlayerReach();
             float rangeSq = range * range;
             Vector3 origin = player.transform.position;
             RefreshTroughs();
@@ -543,8 +558,11 @@ namespace StoreAndCraft
             var stationOrigins = new List<Vector3>(16);
             CollectOnStationOrigins(origin, rangeSq, stationOrigins);
 
-            int bursts = 0;
-            int checks = 0;
+            int bursts = carryBursts;
+            int checks = carryChecks;
+            _overBudget = false;
+            _pulseFrameEnd = System.Diagnostics.Stopwatch.GetTimestamp()
+                + (long)(FrameBudgetMs / 1000.0 * System.Diagnostics.Stopwatch.Frequency);
 
             float chestRange = Plugin.Settings.AutoFillChestReach();
             StationFeed.PullRangeOverride = chestRange;
@@ -563,11 +581,21 @@ namespace StoreAndCraft
                 AddStations(Turrets);
                 AddStations(FoodTrays);
                 AddStations(Troughs);
-                RoundRobinFill(
+                checks = RoundRobinFill(
                     AllStations, ref _stationCursor, origin, rangeSq, player, ref bursts, checks,
                     StationNeedsFill, FillStation);
                 AllStations.Clear();
-                SmelterCatchUp.RunPulse(Smelters, origin, rangeSq, player); // SAC-CATCHUP
+                if (_overBudget)
+                {
+                    // Frame budget used up: the rest of this pulse runs next frame.
+                    _carryBursts = bursts;
+                    _carryChecks = checks;
+                    _nextPulse = Time.unscaledTime;
+                }
+                else
+                {
+                    SmelterCatchUp.RunPulse(Smelters, origin, rangeSq, player); // SAC-CATCHUP
+                }
             }
             finally
             {
@@ -793,10 +821,16 @@ namespace StoreAndCraft
                 return checks;
 
             int start = cursor % list.Count;
+            int checksAtStart = checks; // budget: at least one check per frame, so a resumed pulse always moves on
             for (int n = 0; n < list.Count; n++)
             {
                 if (bursts >= MaxBurstsPerPulse || checks >= MaxChecksPerPulse)
                     break;
+                if (checks > checksAtStart && System.Diagnostics.Stopwatch.GetTimestamp() >= _pulseFrameEnd)
+                {
+                    _overBudget = true;
+                    break;
+                }
 
                 int i = (start + n) % list.Count;
                 T station = list[i];
@@ -869,7 +903,7 @@ namespace StoreAndCraft
             if (smelter == null || player == null)
                 return false;
             StationLink.PushStation(smelter);
-            StationFeed.PullRangeOverride = Plugin.Settings != null ? Plugin.Settings.CraftRange.Value : 0f;
+            StationFeed.PullRangeOverride = Plugin.Settings != null ? Plugin.Settings.CraftReach() : 0f;
             try
             {
                 bool did = false;
@@ -957,7 +991,7 @@ namespace StoreAndCraft
                 return viaMethod;
             if (FuelHash != 0)
                 return zdo.GetFloat(FuelHash, viaMethod);
-            return zdo.GetFloat("fuel", viaMethod);
+            return zdo.GetFloat(ZDOVars.s_fuel, viaMethod);
         }
 
         private static void WriteSmelterFuel(Smelter smelter, float fuel)
@@ -983,7 +1017,7 @@ namespace StoreAndCraft
             if (FuelHash != 0)
                 zdo.Set(FuelHash, fuel);
             else
-                zdo.Set("fuel", fuel);
+                zdo.Set(ZDOVars.s_fuel, fuel);
         }
 
         private static bool FillFuelToMax(Smelter smelter, Player player)
@@ -1215,7 +1249,7 @@ namespace StoreAndCraft
             if (fire == null || player == null || !fire.m_canRefill)
                 return false;
             StationLink.PushStation(fire);
-            StationFeed.PullRangeOverride = Plugin.Settings != null ? Plugin.Settings.CraftRange.Value : 0f;
+            StationFeed.PullRangeOverride = Plugin.Settings != null ? Plugin.Settings.CraftReach() : 0f;
             try
             {
                 return FillFireToMax(fire, player);
@@ -1370,7 +1404,7 @@ namespace StoreAndCraft
             if (oven == null || player == null || !oven.m_useFuel || oven.m_fuelItem == null || oven.m_maxFuel <= 0)
                 return false;
             StationLink.PushStation(oven);
-            StationFeed.PullRangeOverride = Plugin.Settings != null ? Plugin.Settings.CraftRange.Value : 0f;
+            StationFeed.PullRangeOverride = Plugin.Settings != null ? Plugin.Settings.CraftReach() : 0f;
             try
             {
                 return FillOvenFuel(oven, player);
@@ -1594,7 +1628,7 @@ namespace StoreAndCraft
             if (onlyLoadedType)
             {
                 string loaded = TurretGetAmmoType != null
-                    ? TurretGetAmmoType.Invoke(turret, null) as string
+                    ? FastCall.Object(TurretGetAmmoType, turret) as string
                     : null;
 
                 if (!string.IsNullOrEmpty(loaded))
@@ -1716,6 +1750,40 @@ namespace StoreAndCraft
         {
             if (Silence > 0)
                 Silence--;
+            if (Silence == 0 && _skippedEffect != null)
+            {
+                // The whole load is in: play the add effect once (vanilla played it once per item).
+                EffectList fx = _skippedEffect;
+                _skippedEffect = null;
+                try
+                {
+                    fx.Create(_skippedPos, _skippedRot, _skippedParent, _skippedScale, _skippedVariant);
+                }
+                catch (Exception ex)
+                {
+                    Plugin.Log.LogDebug("Auto-fill effect: " + ex.Message);
+                }
+            }
+        }
+
+        // First add effect skipped during a load (see AutoFillEffectBatchPatch).
+        private static EffectList _skippedEffect;
+        private static Vector3 _skippedPos;
+        private static Quaternion _skippedRot;
+        private static Transform _skippedParent;
+        private static float _skippedScale;
+        private static int _skippedVariant;
+
+        internal static void NoteSkippedEffect(EffectList fx, Vector3 pos, Quaternion rot, Transform parent, float scale, int variant)
+        {
+            if (_skippedEffect != null || fx == null)
+                return;
+            _skippedEffect = fx;
+            _skippedPos = pos;
+            _skippedRot = rot;
+            _skippedParent = parent;
+            _skippedScale = scale;
+            _skippedVariant = variant;
         }
 
         /// <summary>Settings menu switch (same ZDO flag as [B]).</summary>
@@ -1726,7 +1794,7 @@ namespace StoreAndCraft
                 return;
             if (!nv.IsOwner())
                 nv.ClaimOwnership();
-            nv.GetZDO().Set(ZdoKey, on ? 1 : 0);
+            nv.GetZDO().Set(ZdoKeyHash, on ? 1 : 0);
             ClearQuiet(station);
             ActivityLog.Note(StationOutput.StationLabel(station),
                 on ? Loc.T("Auto-fill on", "Auto-Fill an") : Loc.T("Auto-fill off", "Auto-Fill aus"));
@@ -1945,21 +2013,46 @@ namespace StoreAndCraft
                 ChestWakeUntil.Clear();
             ChestWakeUntil[id] = now + ChestWakeCooldown;
 
-            Vector3 pos = chest.transform.position;
+            // Collected and handled once per frame (Tick): loading a base loads ~100 chests in a few frames, and each
+            // used to walk every station right away.
+            if (PendingWake.Count < MaxPendingWake)
+                PendingWake.Add(chest.transform.position);
+            else
+                _wakeAll = true; // more chests than slots this frame: wake every quiet station
+        }
+
+        private static bool _wakeAll;
+
+        private const int MaxPendingWake = 64;
+        private static readonly List<Vector3> PendingWake = new List<Vector3>(MaxPendingWake);
+
+        /// <summary>Wakes the quiet stations near the chests that changed since the last frame (see WakeNearChest).</summary>
+        private static void FlushPendingWake()
+        {
+            if (PendingWake.Count == 0)
+                return;
+            if (QuietUntil.Count == 0 || Plugin.Settings == null)
+            {
+                PendingWake.Clear();
+                _wakeAll = false;
+                return;
+            }
             float reach = Plugin.Settings.AutoFillChestReach();
-            float sq = reach * reach;
+            float sq = _wakeAll ? float.MaxValue : reach * reach;
+            _wakeAll = false;
             bool woke = false;
-            woke |= WakeList(Fires, pos, sq);
-            woke |= WakeList(Smelters, pos, sq);
-            woke |= WakeList(Ovens, pos, sq);
-            woke |= WakeList(Fermenters, pos, sq);
-            woke |= WakeList(Turrets, pos, sq);
-            woke |= WakeList(FoodTrays, pos, sq);
+            woke |= WakeList(Fires, sq);
+            woke |= WakeList(Smelters, sq);
+            woke |= WakeList(Ovens, sq);
+            woke |= WakeList(Fermenters, sq);
+            woke |= WakeList(Turrets, sq);
+            woke |= WakeList(FoodTrays, sq);
+            PendingWake.Clear();
             if (woke)
                 RequestSoon();
         }
 
-        private static bool WakeList<T>(List<T> list, Vector3 chestPos, float reachSq) where T : Component
+        private static bool WakeList<T>(List<T> list, float reachSq) where T : Component
         {
             bool woke = false;
             for (int i = 0; i < list.Count; i++)
@@ -1967,9 +2060,15 @@ namespace StoreAndCraft
                 T station = list[i];
                 if (station == null)
                     continue;
-                if (ContainerFilter.SqrDistance(chestPos, station.transform.position) > reachSq)
-                    continue;
-                woke |= ClearQuiet(station);
+                Vector3 sp = station.transform.position;
+                for (int p = 0; p < PendingWake.Count; p++)
+                {
+                    if (ContainerFilter.SqrDistance(PendingWake[p], sp) <= reachSq)
+                    {
+                        woke |= ClearQuiet(station);
+                        break;
+                    }
+                }
             }
             return woke;
         }
@@ -2006,7 +2105,7 @@ namespace StoreAndCraft
                 return 0f;
             if (FuelHash != 0)
                 return zdo.GetFloat(FuelHash, 0f);
-            return zdo.GetFloat("fuel", 0f);
+            return zdo.GetFloat(ZDOVars.s_fuel, 0f);
         }
 
         private static bool IsTrue(MethodInfo method, object target)
@@ -2015,8 +2114,7 @@ namespace StoreAndCraft
                 return false;
             try
             {
-                object value = method.Invoke(target, null);
-                return value is bool && (bool)value;
+                return FastCall.Bool(method, target);
             }
             catch
             {
@@ -2030,6 +2128,8 @@ namespace StoreAndCraft
                 return -1;
             try
             {
+                if (method.ReturnType.IsValueType)
+                    return FastCall.Int(method, target);
                 object value = method.Invoke(target, null);
                 return value == null ? -1 : Convert.ToInt32(value);
             }
@@ -2045,6 +2145,9 @@ namespace StoreAndCraft
                 return 0f;
             try
             {
+                System.Type rt = method.ReturnType;
+                if (rt == typeof(float) || rt == typeof(int) || rt == typeof(double))
+                    return FastCall.Float(method, target);
                 return ToFloat(method.Invoke(target, null));
             }
             catch
@@ -2196,6 +2299,60 @@ namespace StoreAndCraft
             }
             for (int i = 0; i < dead.Count; i++)
                 QuietUntil.Remove(dead[i]);
+        }
+    }
+
+    /// <summary>
+    /// Auto-fill adds a whole load in one go (Silence > 0, around the RPC_AddOre / RPC_AddFuel / RPC_AddItem /
+    /// RPC_AddAmmo loops). Vanilla creates the add effect (sound + particles) for every single item: 75 wood were
+    /// 75 effects in one frame. Skipped here; EndSilence plays the first one once. The RPCs themselves run unchanged.
+    /// </summary>
+    [HarmonyPatch(typeof(EffectList), nameof(EffectList.Create))]
+    internal static class AutoFillEffectBatchPatch
+    {
+        private static readonly GameObject[] None = new GameObject[0];
+
+        private static bool Prefix(EffectList __instance, Vector3 basePos, Quaternion baseRot, Transform baseParent,
+            float scale, int variant, ref GameObject[] __result)
+        {
+            if (StationAutoFill.Silence <= 0)
+                return true;
+            StationAutoFill.NoteSkippedEffect(__instance, basePos, baseRot, baseParent, scale, variant);
+            __result = None;
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Same loads: vanilla writes "Added ore Wood" / "Added ammo" / "Add fuel" to the log for every item (a Unity
+    /// log line each, 75 in one frame). Muted while auto-fill adds a load. ZLog lives in another game assembly:
+    /// the methods are looked up at runtime, nothing is patched when they are not found.
+    /// </summary>
+    [HarmonyPatch]
+    internal static class AutoFillLogBatchPatch
+    {
+        private static bool Prepare()
+        {
+            foreach (MethodBase m in TargetMethods())
+                return true;
+            return false;
+        }
+
+        private static IEnumerable<MethodBase> TargetMethods()
+        {
+            Type zlog = AccessTools.TypeByName("ZLog");
+            if (zlog == null)
+                yield break;
+            foreach (MethodInfo m in AccessTools.GetDeclaredMethods(zlog))
+            {
+                if (m.IsStatic && (m.Name == "Log" || m.Name == "DevLog") && m.GetParameters().Length == 1)
+                    yield return m;
+            }
+        }
+
+        private static bool Prefix()
+        {
+            return StationAutoFill.Silence <= 0;
         }
     }
 
@@ -2438,6 +2595,8 @@ namespace StoreAndCraft
         private static void Postfix(Container __instance)
         {
             StationAutoFill.WakeNearChest(__instance);
+            AutoStack.MarkChanged(__instance);
+            ItemIndex.MarkDirty(__instance);
         }
     }
 

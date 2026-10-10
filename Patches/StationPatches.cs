@@ -533,7 +533,7 @@ namespace StoreAndCraft
 
             // OnInteract first collects finished food. Do not pull raw meat from chests
             // in that case (was giving cooked + raw boar on the first E).
-            if (HaveDoneItem != null && (bool)HaveDoneItem.Invoke(__instance, null))
+            if (HaveDoneItem != null && FastCall.Bool(HaveDoneItem, __instance))
                 return;
 
             StationLink.PushStation(__instance);

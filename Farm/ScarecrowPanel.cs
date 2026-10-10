@@ -8,8 +8,9 @@ namespace StoreAndCraft
 {
     /// <summary>
     /// Compact scarecrow settings (Alt+E): small panel top-left under the hotbar so the field stays
-    /// visible. Crop button (opens a small crop list beside the panel), Harvest / Plant switches and the
-    /// l1–l9 link buttons. The grid size is changed in the world (Shift / Ctrl + wheel).
+    /// visible. Crop button (opens a small crop list beside the panel: pick several, each gets a colour), the
+    /// pattern editor (draw which crop grows where on the grid), Harvest / Plant switches and the l1–l9 link
+    /// buttons. The grid size is changed in the world (Shift / Ctrl + wheel).
     /// Hosted by StationFilterMenu (open / close / Esc handling); this class only builds the UI.
     /// </summary>
     internal static class ScarecrowPanel
@@ -28,7 +29,25 @@ namespace StoreAndCraft
         private static UnityAction _close;
         private static GameObject _panel;
         private static GameObject _list;
+        private static GameObject _pattern;
         private static GameObject _linkGrid;
+        private static int _brush; // palette index painted with, -1 = erase
+
+        private const float PatternInner = 350f;
+        private const float PatternW = PatternInner + 36f;
+
+        /// <summary>Colour of the crops in the list and in the pattern, by palette index.</summary>
+        private static readonly Color[] CropColors =
+        {
+            new Color(0.36f, 0.75f, 0.35f), new Color(0.95f, 0.55f, 0.15f), new Color(0.35f, 0.55f, 0.95f),
+            new Color(0.70f, 0.40f, 0.85f), new Color(0.90f, 0.30f, 0.30f), new Color(0.95f, 0.85f, 0.25f),
+            new Color(0.30f, 0.85f, 0.85f), new Color(0.95f, 0.50f, 0.70f)
+        };
+        private static readonly Color EmptyColor = new Color(0.22f, 0.17f, 0.12f, 1f);
+        private static Color PaletteColor(int index)
+        {
+            return index >= 0 && index < CropColors.Length ? CropColors[index] : EmptyColor;
+        }
         private static bool _listOpen;
         private static float _levelArmedUntil;
 
@@ -55,6 +74,7 @@ namespace StoreAndCraft
             _close = null;
             _panel = null;
             _list = null;
+            _pattern = null;
             _linkGrid = null;
             _listOpen = false;
         }
@@ -65,11 +85,15 @@ namespace StoreAndCraft
                 Object.Destroy(_panel);
             if (_list != null)
                 Object.Destroy(_list);
+            if (_pattern != null)
+                Object.Destroy(_pattern);
             _panel = null;
             _list = null;
+            _pattern = null;
             _linkGrid = null;
 
             Scarecrow s = _scarecrow;
+            List<string> palette = s.Palette();
             float linkBlock = UiLinkGrid.BlockSize(UiLinkGrid.Cell, UiLinkGrid.Gap);
             float top = 56f;
             float y1 = top;
@@ -87,19 +111,21 @@ namespace StoreAndCraft
                 TextAlignmentOptions.TopLeft);
             Button(p, "X", new Vector2(PanelW - Pad - 28f, -Pad + 4f), new Vector2(28f, 28f), "X", () => _close?.Invoke(), false);
 
-            // Crop: icon + name, opens the crop list.
+            // Crops: icon + name (or the number), opens the crop list where several can be picked.
             string seed = s.CropSeed;
-            string cropName = string.IsNullOrEmpty(seed)
+            string cropName = palette.Count == 0
                 ? Loc.T("choose...", "wählen...")
-                : CropMap.DisplayName(seed);
+                : palette.Count == 1 ? CropMap.DisplayName(seed)
+                : palette.Count + " " + Loc.T("selected", "gewählt");
             RectTransform cropBtn = Button(p, "Crop", new Vector2(Pad, -y1), new Vector2(PanelW - 2f * Pad, RowH),
-                Loc.T("Crop: ", "Pflanze: ") + cropName, () => { _listOpen = !_listOpen; Build(); }, _listOpen);
-            Sprite icon = string.IsNullOrEmpty(seed) ? null : StationFilterMenu.ItemIcon(seed);
+                (palette.Count > 1 ? Loc.T("Crops: ", "Pflanzen: ") : Loc.T("Crop: ", "Pflanze: ")) + cropName,
+                () => { _listOpen = !_listOpen; Build(); }, _listOpen);
+            Sprite icon = string.IsNullOrEmpty(seed) ? null : StationFilterMenu.ItemIcon(CropMap.ItemOf(seed));
             if (icon != null)
                 IconImage(cropBtn, icon, new Vector2(8f, -6f), 28f);
 
             // How many seeds the whole grid takes (the middle point is the scarecrow's).
-            Label(p, Loc.T("Needed for the whole grid: ", "Benötigt für das ganze Raster: ") + "<color=#ECC44B>" + s.SeedsNeeded + "</color>",
+            Label(p, Loc.T("Needed for the whole grid: ", "Benötigt für das ganze Raster: ") + "<color=#ECC44B>" + s.NeededText() + "</color>",
                 new Vector2(Pad + 4f, -(y1 + RowH + 3f)), new Vector2(PanelW - 2f * Pad - 8f, infoH - 4f), 15f, Muted,
                 TextAlignmentOptions.TopLeft);
 
@@ -144,18 +170,200 @@ namespace StoreAndCraft
             lg.anchorMin = lg.anchorMax = lg.pivot = new Vector2(0f, 1f);
             lg.anchoredPosition = new Vector2((PanelW - linkBlock) * 0.5f, -y3);
 
+            if (palette.Count > 0)
+                BuildPattern(s, palette);
             if (_listOpen)
-                BuildCropList(panelH);
+                BuildCropList(panelH, palette.Count > 0 ? PatternW + 8f : 0f);
         }
 
-        private static void BuildCropList(float panelH)
+        // ---- pattern: which crop grows on which grid point
+
+        private static void BuildPattern(Scarecrow s, List<string> palette)
+        {
+            int cols = s.Cols, rows = s.Rows;
+            if (_brush >= palette.Count)
+                _brush = palette.Count - 1;
+            if (_brush < -1)
+                _brush = -1;
+
+            // Brushes: the eraser and every picked crop in its colour.
+            const float chip = 40f, chipGap = 4f;
+            int chips = palette.Count + 1;
+            int perRow = Mathf.Max(1, Mathf.FloorToInt((PatternInner + chipGap) / (chip + chipGap)));
+            int chipRows = (chips + perRow - 1) / perRow;
+            float chipsTop = 66f;
+            float gridTop = chipsTop + chipRows * (chip + chipGap) + 8f;
+            float cell = Mathf.Clamp(Mathf.Floor(PatternInner / Mathf.Max(cols, rows)), 8f, 26f);
+            float gridW = cell * cols, gridH = cell * rows;
+            float noteTop = gridTop + gridH + 6f;
+            float buttonsTop = noteTop + 24f;
+            float h = buttonsTop + RowH + 18f;
+
+            _pattern = NewFrame("SAC_ScarecrowPattern", new Vector2(30f + PanelW + 8f, -150f), new Vector2(PatternW, h));
+            RectTransform fp = (RectTransform)_pattern.transform;
+            Label(fp, Loc.T("Pattern", "Muster"), new Vector2(18f, -16f), new Vector2(PatternW - 36f, 24f), 20f, Gold, TextAlignmentOptions.TopLeft);
+            Label(fp, Loc.T("Pick a crop, then click or drag on the grid. Right click erases.",
+                    "Pflanze wählen, dann im Raster klicken oder ziehen. Rechtsklick löscht."),
+                new Vector2(18f, -40f), new Vector2(PatternW - 36f, 22f), 13f, Muted, TextAlignmentOptions.TopLeft);
+
+            for (int i = 0; i < chips; i++)
+            {
+                int brush = i - 1; // chip 0 = eraser
+                float x = 18f + (i % perRow) * (chip + chipGap);
+                float y = chipsTop + (i / perRow) * (chip + chipGap);
+                bool on = brush == _brush;
+                RectTransform btn = Button(fp, "Brush" + i, new Vector2(x, -y), new Vector2(chip, chip), "",
+                    () => { _brush = brush; Build(); }, on);
+                Swatch(btn, PaletteColor(brush), new Vector2(5f, -5f), chip - 10f);
+                if (brush < 0)
+                {
+                    Label(btn, "—", new Vector2(0f, -8f), new Vector2(chip, chip - 16f), 20f, Muted, TextAlignmentOptions.Center);
+                }
+                else
+                {
+                    Sprite icon = StationFilterMenu.ItemIcon(CropMap.ItemOf(palette[brush]));
+                    if (icon != null)
+                        IconImage(btn, icon, new Vector2(9f, -9f), chip - 18f);
+                }
+            }
+
+            // The grid: front row (the way the scarecrow looks) on top, like seen from behind it.
+            float gx = 18f + (PatternInner - gridW) * 0.5f;
+            var gridGo = new GameObject("Grid", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+            gridGo.transform.SetParent(fp, false);
+            RectTransform gr = (RectTransform)gridGo.transform;
+            gr.anchorMin = gr.anchorMax = gr.pivot = new Vector2(0f, 1f);
+            gr.anchoredPosition = new Vector2(gx, -gridTop);
+            gr.sizeDelta = new Vector2(gridW, gridH);
+            Image back = gridGo.GetComponent<Image>();
+            back.color = new Color(0f, 0f, 0f, 0.4f);
+            back.raycastTarget = true;
+
+            int[] idx = (int[])s.CellIndices().Clone(); // painted on here, written back when the stroke ends
+            var imgs = new Image[idx.Length];
+            int center = s.CenterIndex;
+            for (int r = 0; r < rows; r++)
+            {
+                for (int c = 0; c < cols; c++)
+                {
+                    int i = r * cols + c;
+                    int visualRow = rows - 1 - r;
+                    imgs[i] = Swatch(gr, i == center ? EmptyColor : PaletteColor(idx[i]),
+                        new Vector2(c * cell + 0.5f, -(visualRow * cell + 0.5f)), cell - 1f);
+                    if (i == center)
+                        Label((RectTransform)imgs[i].transform, "S", Vector2.zero, new Vector2(cell - 1f, cell - 1f),
+                            Mathf.Min(14f, cell - 4f), Gold, TextAlignmentOptions.Center);
+                }
+            }
+            PatternPaint paint = gridGo.AddComponent<PatternPaint>();
+            paint.Cols = cols;
+            paint.Rows = rows;
+            paint.Cell = cell;
+            paint.Center = center;
+            paint.Idx = idx;
+            paint.Imgs = imgs;
+            paint.Brush = () => _brush;
+            paint.Commit = () => { s.SetCells(idx); Build(); };
+
+            Label(fp, Loc.T("Top = in front of the scarecrow. S = the scarecrow.", "Oben = vor der Vogelscheuche. S = die Vogelscheuche."),
+                new Vector2(18f, -noteTop), new Vector2(PatternW - 36f, 20f), 13f, Muted, TextAlignmentOptions.TopLeft);
+
+            float half = (PatternInner - RowGap) * 0.5f;
+            Button(fp, "FillAll", new Vector2(18f, -buttonsTop), new Vector2(half, RowH),
+                Loc.T("Fill with brush", "Alles füllen"), () =>
+                {
+                    int v = _brush;
+                    for (int i = 0; i < idx.Length; i++)
+                        idx[i] = i == center ? idx[i] : v;
+                    s.SetCells(idx);
+                    Build();
+                }, false);
+            Button(fp, "ClearAll", new Vector2(18f + half + RowGap, -buttonsTop), new Vector2(half, RowH),
+                Loc.T("Clear", "Leeren"), () =>
+                {
+                    for (int i = 0; i < idx.Length; i++)
+                        idx[i] = -1;
+                    s.SetCells(idx);
+                    Build();
+                }, false);
+        }
+
+        private static Image Swatch(RectTransform parent, Color color, Vector2 pos, float size)
+        {
+            var go = new GameObject("Swatch", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+            go.transform.SetParent(parent, false);
+            RectTransform rt = (RectTransform)go.transform;
+            rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0f, 1f);
+            rt.anchoredPosition = pos;
+            rt.sizeDelta = new Vector2(size, size);
+            Image img = go.GetComponent<Image>();
+            img.color = color;
+            img.raycastTarget = false;
+            return img;
+        }
+
+        /// <summary>Paints on the pattern grid: click or drag with the left button, the right button erases.</summary>
+        private sealed class PatternPaint : MonoBehaviour,
+            UnityEngine.EventSystems.IPointerDownHandler,
+            UnityEngine.EventSystems.IDragHandler,
+            UnityEngine.EventSystems.IPointerUpHandler
+        {
+            public int Cols, Rows, Center;
+            public float Cell;
+            public int[] Idx;
+            public Image[] Imgs;
+            public System.Func<int> Brush;
+            public System.Action Commit;
+            private bool _changed;
+
+            public void OnPointerDown(UnityEngine.EventSystems.PointerEventData e)
+            {
+                _changed = false;
+                Paint(e);
+            }
+
+            public void OnDrag(UnityEngine.EventSystems.PointerEventData e)
+            {
+                Paint(e);
+            }
+
+            public void OnPointerUp(UnityEngine.EventSystems.PointerEventData e)
+            {
+                if (_changed && Commit != null)
+                    Commit();
+                _changed = false;
+            }
+
+            private void Paint(UnityEngine.EventSystems.PointerEventData e)
+            {
+                Vector2 local;
+                if (!RectTransformUtility.ScreenPointToLocalPointInRectangle((RectTransform)transform, e.position, e.pressEventCamera, out local))
+                    return;
+                int c = Mathf.FloorToInt(local.x / Cell);
+                int visualRow = Mathf.FloorToInt(-local.y / Cell);
+                if (c < 0 || c >= Cols || visualRow < 0 || visualRow >= Rows)
+                    return;
+                int i = (Rows - 1 - visualRow) * Cols + c;
+                if (i == Center)
+                    return;
+                int v = e.button == UnityEngine.EventSystems.PointerEventData.InputButton.Right ? -1 : Brush();
+                if (Idx[i] == v)
+                    return;
+                Idx[i] = v;
+                Imgs[i].color = PaletteColor(v);
+                _changed = true;
+            }
+        }
+
+        private static void BuildCropList(float panelH, float shift)
         {
             Scarecrow s = _scarecrow;
+            List<string> palette = s.Palette();
             List<string> all = CropMap.SeedChoices();
             var shown = new List<string>(all.Count);
             for (int i = 0; i < all.Count; i++)
             {
-                if (DisplayFilters.IsKnownToPlayer(all[i]) || all[i] == s.CropSeed)
+                if (DisplayFilters.IsKnownToPlayer(CropMap.ItemOf(all[i])) || palette.Contains(all[i]))
                     shown.Add(all[i]);
             }
 
@@ -163,7 +371,7 @@ namespace StoreAndCraft
             int rows = Mathf.Max(1, (shown.Count + cols - 1) / cols);
             float w = 2f * 18f + cols * CellW + (cols - 1) * 6f;
             float h = 2f * 18f + rows * CellH + (rows - 1) * 6f;
-            _list = NewFrame("SAC_ScarecrowCrops", new Vector2(30f + PanelW + 8f, -150f), new Vector2(w, h));
+            _list = NewFrame("SAC_ScarecrowCrops", new Vector2(30f + PanelW + 8f + shift, -150f), new Vector2(w, h));
             RectTransform lp = (RectTransform)_list.transform;
             if (shown.Count == 0)
                 Label(lp, Loc.T("No crop seeds discovered yet.", "Noch keine Samen entdeckt."),
@@ -174,11 +382,14 @@ namespace StoreAndCraft
                 string shared = shown[i];
                 int col = i % cols;
                 int row = i / cols;
-                bool on = shared == s.CropSeed;
+                int inBed = palette.IndexOf(shared);
+                bool on = inBed >= 0;
                 RectTransform cell = Button(lp, "Crop" + i,
                     new Vector2(18f + col * (CellW + 6f), -(18f + row * (CellH + 6f))),
                     new Vector2(CellW, CellH), "", () => PickCrop(shared), on);
-                Sprite icon = StationFilterMenu.ItemIcon(shared);
+                if (on)
+                    Swatch(cell, PaletteColor(inBed), new Vector2(CellW - 22f, -8f), 14f);
+                Sprite icon = StationFilterMenu.ItemIcon(CropMap.ItemOf(shared));
                 if (icon != null)
                     IconImage(cell, icon, new Vector2((CellW - 44f) * 0.5f, -8f), 44f);
                 Label(cell, CropMap.DisplayName(shared), new Vector2(4f, -54f), new Vector2(CellW - 8f, 34f), 12f,
@@ -190,8 +401,7 @@ namespace StoreAndCraft
         {
             if (_scarecrow == null)
                 return;
-            _scarecrow.SetCrop(shared);
-            _listOpen = false;
+            _scarecrow.ToggleCrop(shared); // several can be picked, the list stays open
             Build();
         }
 

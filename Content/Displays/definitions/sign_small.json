@@ -42,14 +42,14 @@
           "id": "Items",
           "category": "all",
           "showAmount": true,
-          "amountScale": 1,
+          "amountScale": 1.65,
           "iconScale": 1,
           "sort": "count",
           "fill": "top",
           "emptyText": "",
           "amountColor": "",
           "grid": { "columns": 2, "rows": 2, "spacingX": 0.45, "spacingY": 0.2, "offsetX": 0, "offsetY": 0, "offsetZ": -0.03, "euler": { "x": 0, "y": 0, "z": 0 } },
-          "label": { "enabled": false, "text": "", "offsetX": 0, "offsetY": 0.2, "offsetZ": -0.03, "euler": { "x": 0, "y": 0, "z": 0 }, "width": 0.9, "height": 0.1, "fontSize": 0, "align": "center", "color": "#FFD966", "uppercase": true }
+          "label": { "enabled": false, "text": "", "offsetX": 0, "offsetY": 0.2, "offsetZ": -0.03, "euler": { "x": 0, "y": 0, "z": 0 }, "width": 0.9, "height": 0.1, "fontSize": 0.01, "align": "center", "color": "#FFD966", "uppercase": true }
         }
       ]
     },

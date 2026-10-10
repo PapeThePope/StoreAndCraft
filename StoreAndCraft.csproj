@@ -10,10 +10,15 @@
     <AssemblyName>StoreAndCraft</AssemblyName>
     <RootNamespace>StoreAndCraft</RootNamespace>
     <Product>StoreAndCraft</Product>
-    <Version>1.4.2</Version>
-    <ModVersion>1.4.2</ModVersion>
+    <Version>1.5.0</Version>
+    <ModVersion>1.5.0</ModVersion>
     <OutputPath>bin\$(Configuration)\</OutputPath>
     <DebugType>portable</DebugType>
+  </PropertyGroup>
+
+  <!-- Dev only: dotnet build -c Release -p:SacProfile=true  adds the timing report (Dev/PerfProfiler.cs). Off in every release. -->
+  <PropertyGroup Condition="'$(SacProfile)' == 'true'">
+    <DefineConstants>$(DefineConstants);SAC_PROFILE</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup>

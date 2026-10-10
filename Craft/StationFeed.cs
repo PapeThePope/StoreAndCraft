@@ -128,7 +128,7 @@ namespace StoreAndCraft
         {
             if (PullRangeOverride > 0f)
                 return PullRangeOverride;
-            return Plugin.Settings != null ? Plugin.Settings.CraftRange.Value : 20f;
+            return Plugin.Settings != null ? Plugin.Settings.CraftReach() : 20f;
         }
 
         public static bool HasOrChests(Player player, string shared)
@@ -460,6 +460,9 @@ namespace StoreAndCraft
             bool forceLoad)
         {
             if (chest == null || need <= 0 || !StationLink.ChestAllowed(chest, linkId))
+                return 0;
+            // A chest that surely has none is skipped (no load); the forced second pass still looks at every chest.
+            if (!forceLoad && !ItemIndex.MightHold(chest, shared))
                 return 0;
 
             Inventory inv = chest.GetInventory();

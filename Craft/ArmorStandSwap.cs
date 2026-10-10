@@ -139,7 +139,9 @@ namespace StoreAndCraft
         // ---- presets: which piece of the bag is swapped with the stand's piece in this slot (Alt+E menu)
 
         private const string PresetItemKey = "SAC_swapItem";
+        private static readonly int PresetItemKeyHash = PresetItemKey.GetStableHashCode();
         private const string PresetQualityKey = "SAC_swapQ";
+        private static readonly int PresetQualityKeyHash = PresetQualityKey.GetStableHashCode();
 
         /// <summary>Weapon / shield / tool slot (nothing that takes armor).</summary>
         internal static bool IsPresetSlot(ArmorStand stand, int slot)

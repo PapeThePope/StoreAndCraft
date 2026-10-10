@@ -110,6 +110,56 @@ namespace StoreAndCraft
     {
         private const string BadgeName = "SAC_FavStar";
 
+        // Runs every frame while the inventory is open: the element list via a compiled field access (not a
+        // reflection lookup per frame), and each slot's star remembered instead of searched by name every frame.
+        private static readonly AccessTools.FieldRef<InventoryGrid, System.Collections.Generic.List<InventoryElement>> ElementsRef = ElementsRefOrNull();
+        private static readonly System.Collections.Generic.Dictionary<InventoryElement, Transform> Badges =
+            new System.Collections.Generic.Dictionary<InventoryElement, Transform>();
+
+        private static AccessTools.FieldRef<InventoryGrid, System.Collections.Generic.List<InventoryElement>> ElementsRefOrNull()
+        {
+            try
+            {
+                return AccessTools.Field(typeof(InventoryGrid), "m_elements") != null
+                    ? AccessTools.FieldRefAccess<InventoryGrid, System.Collections.Generic.List<InventoryElement>>("m_elements")
+                    : null;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// The slot's star (null = none yet). Found once by name, then remembered. A star whose font is gone
+        /// (TMP without font) is removed when it is found, so a new one gets created.
+        /// </summary>
+        private static Transform BadgeOf(InventoryElement el)
+        {
+            Transform badge;
+            if (Badges.TryGetValue(el, out badge) && badge != null)
+                return badge;
+            badge = el.transform.Find(BadgeName);
+            if (badge != null && IsBrokenTmpBadge(badge))
+            {
+                Object.Destroy(badge.gameObject);
+                badge = null;
+            }
+            if (badge != null)
+            {
+                if (Badges.Count > 512)
+                    Badges.Clear();
+                Badges[el] = badge;
+            }
+            return badge;
+        }
+
+        private static void SetShown(Transform badge, bool on)
+        {
+            if (badge != null && badge.gameObject.activeSelf != on)
+                badge.gameObject.SetActive(on);
+        }
+
         private static void Postfix(InventoryGrid __instance)
         {
             if (__instance == null || Plugin.Settings == null || !Plugin.Settings.ModEnabled.Value)
@@ -123,11 +173,9 @@ namespace StoreAndCraft
             if (inv == null)
                 return;
 
-            var field = AccessTools.Field(typeof(InventoryGrid), "m_elements");
-            if (field == null)
+            if (ElementsRef == null)
                 return;
-
-            var list = field.GetValue(__instance) as System.Collections.Generic.List<InventoryElement>;
+            System.Collections.Generic.List<InventoryElement> list = ElementsRef(__instance);
             if (list == null)
                 return;
 
@@ -138,7 +186,7 @@ namespace StoreAndCraft
 
                 if (!el.m_used)
                 {
-                    ClearBadge(el.transform);
+                    SetShown(BadgeOf(el), false);
                     ClearLegacyTint(el);
                     continue;
                 }
@@ -148,15 +196,6 @@ namespace StoreAndCraft
                 bool fav = item != null && Favorites.IsFavorite(item);
                 ApplyVisual(el, fav);
             }
-        }
-
-        private static void ClearBadge(Transform root)
-        {
-            if (root == null)
-                return;
-            Transform badge = root.Find(BadgeName);
-            if (badge != null)
-                badge.gameObject.SetActive(false);
         }
 
         private static void ClearLegacyTint(InventoryElement el)
@@ -173,23 +212,20 @@ namespace StoreAndCraft
         {
             ClearLegacyTint(el);
 
-            Transform root = el.transform;
-            Transform badge = root.Find(BadgeName);
+            Transform badge = BadgeOf(el);
             if (favorite)
             {
-                if (badge != null && IsBrokenTmpBadge(badge))
-                {
-                    Object.Destroy(badge.gameObject);
-                    badge = null;
-                }
                 if (badge == null)
+                {
                     badge = CreateBadge(el);
-                if (badge != null)
-                    badge.gameObject.SetActive(true);
+                    if (badge != null)
+                        Badges[el] = badge;
+                }
+                SetShown(badge, true);
             }
-            else if (badge != null)
+            else
             {
-                badge.gameObject.SetActive(false);
+                SetShown(badge, false);
             }
         }
 

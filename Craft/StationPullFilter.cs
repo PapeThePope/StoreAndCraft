@@ -13,6 +13,7 @@ namespace StoreAndCraft
     internal static class StationPullFilter
     {
         public const string ZdoKey = "SAC_stationDeny";
+        public static readonly int ZdoKeyHash = ZdoKey.GetStableHashCode();
 
         public static Smelter HoveredSmelter()
         {
@@ -383,7 +384,7 @@ namespace StoreAndCraft
             else
                 set.Remove(shared);
 
-            nv.GetZDO().Set(ZdoKey, Encode(set));
+            nv.GetZDO().Set(ZdoKeyHash, Encode(set));
         }
 
         private static void Clear(ZNetView nv)
@@ -392,7 +393,7 @@ namespace StoreAndCraft
                 return;
             if (!nv.IsOwner())
                 nv.ClaimOwnership();
-            nv.GetZDO().Set(ZdoKey, "");
+            nv.GetZDO().Set(ZdoKeyHash, "");
         }
 
         private static HashSet<string> ReadDenied(ZNetView nv)
@@ -402,7 +403,7 @@ namespace StoreAndCraft
             if (zdo == null)
                 return set;
 
-            string raw = zdo.GetString(ZdoKey, "");
+            string raw = zdo.GetString(ZdoKeyHash, "");
             if (string.IsNullOrEmpty(raw))
                 return set;
 

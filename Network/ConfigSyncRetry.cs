@@ -53,7 +53,7 @@ namespace StoreAndCraft
                 if (VersionGate.ClientVerified)
                 {
                     ConfigSync.AcceptLocalFallback(
-                        "handshake ok but no config package after " + _attempts + " attempts");
+                        "handshake ok but no config package after " + _attempts + " attempts; " + ConfigSync.Describe());
                 }
                 else
                 {

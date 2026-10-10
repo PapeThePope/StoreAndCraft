@@ -64,9 +64,32 @@ namespace StoreAndCraft
         {
             if (gui == null || gui != _builtFor || _take == null || !InventoryGui.IsVisible())
                 return;
-            if (gui.m_container.gameObject.activeInHierarchy)
+            ModConfig cfg = Plugin.Settings;
+            bool showChest = cfg == null || cfg.ShowChestSortButtons.Value;
+            bool showBag = cfg == null || cfg.ShowBagSortButtons.Value;
+            SetShown(_chestSort, showChest);
+            SetShown(_chestStack, showChest);
+            SetShown(_bagSort, showBag);
+            SetShown(_bagStack, showBag);
+
+            if (showChest && gui.m_container.gameObject.activeInHierarchy)
                 LayoutChest(gui);
-            LayoutBag(gui);
+            else if (!showChest && _takeMeasured)
+            {
+                // Buttons off: Take all gets its vanilla size and place back.
+                _take.sizeDelta = _takeSize0;
+                _take.localPosition = _takeLocal0;
+                _takeSizeSeen = _take.sizeDelta;
+                _takeLocalSeen = _take.localPosition;
+            }
+            if (showBag)
+                LayoutBag(gui);
+        }
+
+        private static void SetShown(RectTransform rt, bool on)
+        {
+            if (rt != null && rt.gameObject.activeSelf != on)
+                rt.gameObject.SetActive(on);
         }
 
         private static void LayoutChest(InventoryGui gui)

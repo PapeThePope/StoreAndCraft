@@ -154,19 +154,6 @@
           "amountColor": "",
           "grid": { "columns": 2, "rows": 3, "spacingX": 0.87, "spacingY": 0.32, "offsetX": -1.77, "offsetY": 0.84, "offsetZ": 0, "euler": { "x": 0, "y": 0, "z": 0 } },
           "label": { "enabled": true, "text": "", "offsetX": -1.77, "offsetY": 1.44, "offsetZ": 0, "euler": { "x": 0, "y": 0, "z": 0 }, "width": 1.74, "height": 0.2, "fontSize": 0.14, "align": "center", "color": "#FFD966", "uppercase": true }
-        },
-        {
-          "id": "Bereich 7",
-          "category": "7",
-          "showAmount": true,
-          "amountScale": 1,
-          "iconScale": 1,
-          "sort": "count",
-          "fill": "top",
-          "emptyText": "0",
-          "amountColor": "",
-          "grid": { "columns": 7, "rows": 2, "spacingX": 0.41, "spacingY": 0.4, "offsetX": 0, "offsetY": -2.4, "offsetZ": 0, "euler": { "x": 0, "y": 0, "z": 0 } },
-          "label": { "enabled": true, "text": "", "offsetX": 0, "offsetY": -1.85, "offsetZ": 0, "euler": { "x": 0, "y": 0, "z": 0 }, "width": 2.87, "height": 0.28, "fontSize": 0.17, "align": "left", "color": "#FFD966", "uppercase": true }
         }
       ]
     },

@@ -487,19 +487,6 @@ namespace StoreAndCraft
         }
     }
 
-    [HarmonyPatch(typeof(ZNetScene), nameof(ZNetScene.GetPrefab), typeof(int))]
-    internal static class ZNetSceneGetPrefabDisplayPatch
-    {
-        private static void Postfix(int hash, ref GameObject __result)
-        {
-            if (__result != null)
-                return;
-            GameObject found = DisplayPrefab.PrefabForHash(hash);
-            if (found != null)
-                __result = found;
-        }
-    }
-
     [HarmonyPatch(typeof(Game), "Start")]
     internal static class GameStartDisplayPatch
     {

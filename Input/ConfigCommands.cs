@@ -93,7 +93,8 @@ namespace StoreAndCraft
                 || lower.StartsWith("/storagerange")
                 || lower.StartsWith("/autofillrange")
                 || lower.StartsWith("/autofillchestrange")
-                || lower.StartsWith("/displayrange")
+                || lower.StartsWith("/scarecrowrange")
+                || lower.StartsWith("/scarecrowchestrange")
                 || lower.StartsWith("/feedtroughrange")
                 || lower.StartsWith("/catchup") // SAC-CATCHUP (also /catchuphours)
                 || lower.StartsWith("/torchautofill")
@@ -175,7 +176,9 @@ namespace StoreAndCraft
         {
             if (string.IsNullOrEmpty(message))
                 return;
-            Tell(message);
+            // Console (F5) + log only: the server answers every saved value with the full range list, which was a
+            // long yellow message per change on F10 Save. The F10 panel shows the values; chat commands already got
+            // their short message from the local apply.
             PrintLine(message);
         }
 
@@ -471,6 +474,12 @@ namespace StoreAndCraft
                 return true;
             }
 
+            if (key == "intakeinterval" && (value < 1f || value > 60f))
+            {
+                message = "Auto-store interval must be between 1 and 60 seconds.";
+                return false;
+            }
+
             if (key == "catchuphours" && (value < 0.5f || value > 48f))
             {
                 message = "Catch-up hours must be between 0.5 and 48.";
@@ -518,7 +527,8 @@ namespace StoreAndCraft
             string cmd = parts[0].TrimStart('/').ToLowerInvariant();
 
             if (cmd == "storerange" || cmd == "dumprange" || cmd == "craftrange" || cmd == "storagerange" || cmd == "autofillrange"
-                || cmd == "autofillchestrange" || cmd == "displayrange" || cmd == "feedtroughrange"
+                || cmd == "autofillchestrange" || cmd == "scarecrowrange" || cmd == "scarecrowchestrange"
+                || cmd == "feedtroughrange" || cmd == "intakeinterval"
                 || cmd == "catchup" || cmd == "catchuphours" || cmd == "torchautofill" || cmd == "torchautofilloverride"
                 || BoolEntryFor(cmd) != null
                 || IsStationCapKey(cmd)) // F10 station capacities + fermenter batch
@@ -547,10 +557,14 @@ namespace StoreAndCraft
                     key = "autofillrange";
                 else if (sub == "autofillchest" || sub == "autofillchestrange")
                     key = "autofillchestrange";
-                else if (sub == "display" || sub == "displayrange")
-                    key = "displayrange";
+                else if (sub == "scarecrow" || sub == "scarecrowrange")
+                    key = "scarecrowrange";
+                else if (sub == "scarecrowchest" || sub == "scarecrowchestrange")
+                    key = "scarecrowchestrange";
                 else if (sub == "feedtrough" || sub == "feedtroughrange")
                     key = "feedtroughrange";
+                else if (sub == "intake" || sub == "intakeinterval")
+                    key = "intakeinterval";
                 else if (sub == "catchup" || sub == "catchuphours" || sub == "torchautofill" || sub == "torchautofilloverride")
                     key = sub;
                 else
@@ -581,6 +595,7 @@ namespace StoreAndCraft
                 case "leaveone": return Plugin.Settings.LeaveOneItem;
                 case "feedtroughenabled": return Plugin.Settings.FeedTroughEnabled;
                 case "armorstandswap": return Plugin.Settings.ArmorStandSwap;
+                case "automationloadedarea": return Plugin.Settings.AutomationLoadedArea;
                 default: return null;
             }
         }
@@ -620,12 +635,16 @@ namespace StoreAndCraft
                     return Plugin.Settings.AutoFillRange;
                 case "autofillchestrange":
                     return Plugin.Settings.AutoFillChestRange;
-                case "displayrange":
-                    return Plugin.Settings.DisplayRange;
+                case "scarecrowrange":
+                    return Plugin.Settings.ScarecrowRange;
+                case "scarecrowchestrange":
+                    return Plugin.Settings.ScarecrowChestRange;
                 case "feedtroughrange":
                     return Plugin.Settings.FeedTroughRange;
                 case "catchuphours":
                     return Plugin.Settings.CatchUpMaxHours;
+                case "intakeinterval":
+                    return Plugin.Settings.IntakeInterval;
                 // Station capacities (0 = vanilla) + fermenter batch.
                 case "kilnmax":
                     return Plugin.Settings.KilnMaxWood;
@@ -704,9 +723,10 @@ namespace StoreAndCraft
                 "  /craftrange <m>             — craft / build / station [E] pull",
                 "  /autofillrange <m>          - auto-fill: player to station",
                 "  /autofillchestrange <m>     - auto-fill: station to chest (0 = same as autofillrange)",
-                "  /displayrange <m>           - storage display default scan range",
+                "  /scarecrowrange <m>         - scarecrow: player to scarecrow (0 = same as autofillrange)",
+                "  /scarecrowchestrange <m>    - scarecrow: scarecrow to chest (0 = same as autofillchestrange)",
                 "  /feedtroughrange <m>        - feed trough range",
-                "  /sac dump|store|storage|craft|autofill|autofillchest|display|feedtrough <m>",
+                "  /sac dump|store|storage|craft|autofill|autofillchest|feedtrough <m>",
                 "  /catchup on|off             - smelters catch up time while nobody was near (B + N)",
                 "  /catchuphours <h>           - most hours one station catches up (0.5-48)",
                 "  /torchautofill on|off       - torches placed from now on start with auto-fill on",
@@ -731,6 +751,8 @@ namespace StoreAndCraft
                 + " Craft=" + Plugin.Settings.CraftRange.Value
                 + " AutoFill=" + Plugin.Settings.AutoFillRange.Value
                 + " AutoFillChest=" + Plugin.Settings.AutoFillChestReach()
+                + " Scarecrow=" + Plugin.Settings.ScarecrowReach()
+                + " ScarecrowChest=" + Plugin.Settings.ScarecrowChestReach()
                 + " AutoIntake=" + (IsAutoIntakeActive() ? "on" : "off")
                 + " CatchUp=" + (Plugin.Settings.CatchUpEnabled.Value ? "on " + Plugin.Settings.CatchUpMaxHours.Value + "h" : "off")
                 + " Lock=" + Plugin.Settings.LockConfig.Value;

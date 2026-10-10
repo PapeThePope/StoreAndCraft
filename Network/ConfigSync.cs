@@ -79,11 +79,23 @@ namespace StoreAndCraft
                 "Install the same StoreAndCraft version on the server if settings should sync.");
         }
 
+        private static int _requestsSent;
+
         public static void RequestConfigFromServer()
         {
             if (AdminUtil.IsServer() || ZRoutedRpc.instance == null)
                 return;
             ZRoutedRpc.instance.InvokeRoutedRPC(VersionGate.ServerPeerId(), RpcRequestName);
+            _requestsSent++;
+        }
+
+        /// <summary>State of the config exchange for the "no config package" warning (where it got stuck).</summary>
+        internal static string Describe()
+        {
+            ZNetPeer server = ZNet.instance != null ? ZNet.instance.GetServerPeer() : null;
+            return "RPCs registered=" + Registered + ", requests sent=" + _requestsSent
+                + ", server peer=" + (server != null ? server.m_uid.ToString() : "none")
+                + ", routed rpc=" + (ZRoutedRpc.instance != null);
         }
 
         public static bool PeerIsAdmin(ZNetPeer peer)

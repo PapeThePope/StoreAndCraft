@@ -14,6 +14,7 @@ namespace StoreAndCraft
     internal static class FermenterBatch
     {
         internal const string ZdoKey = "SAC_fermBatch";
+        internal static readonly int ZdoKeyHash = ZdoKey.GetStableHashCode();
         internal const string RpcAdd = "SAC_FermAdd";
         internal const float AddWindowSeconds = 60f;
         private const int StatusFermenting = 1;
@@ -43,7 +44,7 @@ namespace StoreAndCraft
             ZDO zdo = Zdo(f);
             if (zdo == null || zdo.GetInt(ZDOVars.s_content) == 0)
                 return 0;
-            return Mathf.Max(1, zdo.GetInt(ZdoKey, 1));
+            return Mathf.Max(1, zdo.GetInt(ZdoKeyHash, 1));
         }
 
         internal static int ContentHash(Fermenter f)
@@ -68,9 +69,9 @@ namespace StoreAndCraft
                 return false;
             try
             {
-                if (System.Convert.ToInt32(GetStatusM.Invoke(f, null)) != StatusFermenting)
+                if (FastCall.Int(GetStatusM, f) != StatusFermenting)
                     return false;
-                double t = (double)GetTimeM.Invoke(f, null);
+                double t = FastCall.Double(GetTimeM, f);
                 if (t < 0 || t > AddWindowSeconds)
                     return false;
             }
@@ -151,7 +152,7 @@ namespace StoreAndCraft
                 ReturnBase(f, nameHash);
                 return;
             }
-            nv.GetZDO().Set(ZdoKey, Count(f) + 1);
+            nv.GetZDO().Set(ZdoKeyHash, Count(f) + 1);
             if (f.m_addedEffects != null)
                 f.m_addedEffects.Create(f.transform.position, f.transform.rotation);
         }
@@ -170,7 +171,7 @@ namespace StoreAndCraft
         {
             ZNetView nv = f != null ? f.GetComponent<ZNetView>() : null;
             if (nv != null && nv.IsValid() && nv.IsOwner())
-                nv.GetZDO().Set(ZdoKey, 1);
+                nv.GetZDO().Set(ZdoKeyHash, 1);
         }
 
         internal static void OnTap(Fermenter f)
@@ -181,7 +182,7 @@ namespace StoreAndCraft
             // Vanilla RPC_Tap only taps a ready barrel — keep the count otherwise.
             try
             {
-                if (System.Convert.ToInt32(GetStatusM.Invoke(f, null)) != StatusReady)
+                if (FastCall.Int(GetStatusM, f) != StatusReady)
                     return;
             }
             catch
@@ -189,7 +190,7 @@ namespace StoreAndCraft
                 return;
             }
             PendingTap[f.GetInstanceID()] = Count(f);
-            nv.GetZDO().Set(ZdoKey, 0);
+            nv.GetZDO().Set(ZdoKeyHash, 0);
         }
 
         /// <summary>After vanilla DelayedTap spawned one base worth: spawn the rest of the batch.</summary>
@@ -223,7 +224,7 @@ namespace StoreAndCraft
         {
             ZDO zdo = Zdo(f);
             if (zdo != null)
-                zdo.Set(ZdoKey, 0);
+                zdo.Set(ZdoKeyHash, 0);
         }
 
         internal static void AppendHover(ref string text, Fermenter f)

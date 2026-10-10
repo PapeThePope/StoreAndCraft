@@ -32,37 +32,59 @@ namespace StoreAndCraft
                 && ConfigCommands.IsAutoIntakeActive();
         }
 
+        // A drop that could not be stored: 20 s pause, and after 5 failed tries only one more try every 5 minutes
+        // (a new drop, or a chest that got room, is picked up again at the latest then).
+        private const float FailedRetrySeconds = 20f;
+        private const int FailedTriesBeforeLongPause = 5;
+        private const float LongPauseSeconds = 300f;
+
+        private struct FailInfo
+        {
+            public int Tries;
+            public float Until;
+        }
+
+        private static readonly Dictionary<int, FailInfo> Failed = new Dictionary<int, FailInfo>();
+
+        // A pass over the ground items may take several frames: about PassBudgetMs per frame, it goes on next frame
+        // with the same snapshot, move count and memo. Same pass and order as one long frame, without the spike.
+        private const float PassBudgetMs = 1f;
+        private static int _cursor = -1;
+        private static int _moved;
+        private static float _storeRange;
+        private static bool _loadedArea;
+        private static int _cap;
+
         private static void Run()
         {
             if (!Ready())
+            {
+                _cursor = -1;
                 return;
-            if (Time.time < _next)
-                return;
-
-            _next = Time.time + Mathf.Max(1f, Plugin.Settings.IntakeInterval.Value);
-            StationOutput.TickPendingIntakeTags();
-            if (!SnapshotDrops())
+            }
+            if (_cursor < 0 && !StartPass())
                 return;
 
-            PlayerScratch.Clear();
-            List<Player> live = Player.GetAllPlayers();
-            if (live != null && live.Count > 0)
-                PlayerScratch.AddRange(live);
-            if (PlayerScratch.Count == 0)
-                return;
-
-            float storeRange = Plugin.Settings.StoreRange.Value;
-            int cap = Plugin.Settings.MaxTransfersPerTick.Value;
-            int moved = 0;
-            NearbyIndex.BeginStorePass();
-            UsableMemo.Clear();
-
+            long end = System.Diagnostics.Stopwatch.GetTimestamp()
+                + (long)(PassBudgetMs / 1000.0 * System.Diagnostics.Stopwatch.Frequency);
+            float storeRange = _storeRange;
+            bool loadedArea = _loadedArea;
+            int cap = _cap;
+            int moved = _moved;
+            int i = _cursor;
             try
             {
-                for (int i = 0; i < DropScratch.Count; i++)
+                for (; i < DropScratch.Count; i++)
                 {
                     if (moved >= cap)
                         break;
+                    if (i > _cursor && System.Diagnostics.Stopwatch.GetTimestamp() >= end)
+                    {
+                        // Budget used up: this drop and the rest next frame.
+                        _cursor = i;
+                        _moved = moved;
+                        return;
+                    }
 
                     ItemDrop drop = DropScratch[i];
                     if (drop == null || drop.m_itemData == null)
@@ -75,9 +97,19 @@ namespace StoreAndCraft
 
                     // Whoever owns the drop stores it. One player in StoreRange of
                     // the pile is enough (you can walk off, a buddy can stay).
+                    // AutomationLoadedArea: a loaded drop is in some player's loaded area, that is enough.
                     if (!nv.IsOwner())
                         continue;
-                    if (!AnyPlayerInRange(drop.transform.position, storeRange))
+                    if (!loadedArea && !AnyPlayerInRange(drop.transform.position, storeRange))
+                        continue;
+                    if (IsFish(drop))
+                        continue;
+
+                    // A drop that just failed to go in waits a while instead of being tried again every pass.
+                    int dropId = drop.GetInstanceID();
+                    FailInfo fail;
+                    bool hadFailed = Failed.TryGetValue(dropId, out fail);
+                    if (hadFailed && Time.time < fail.Until)
                         continue;
 
                     Container chest = BestChest(drop, storeRange);
@@ -87,8 +119,18 @@ namespace StoreAndCraft
                     int stack = drop.m_itemData.m_stack;
                     if (TransferService.StoreDrop(chest, drop))
                     {
+                        if (hadFailed)
+                            Failed.Remove(dropId);
                         moved++;
                         ActivityLog.Move(Loc.T("Auto-store", "Auto-Lagern"), ActivityLog.Ground(), stack, shared, ActivityLog.Chest(chest));
+                    }
+                    else
+                    {
+                        if (Failed.Count > 256)
+                            Failed.Clear();
+                        int tries = hadFailed ? fail.Tries + 1 : 1;
+                        float wait = tries >= FailedTriesBeforeLongPause ? LongPauseSeconds : FailedRetrySeconds;
+                        Failed[dropId] = new FailInfo { Tries = tries, Until = Time.time + wait };
                     }
                 }
             }
@@ -101,6 +143,44 @@ namespace StoreAndCraft
                         Plugin.Log.LogWarning("AutoIntake: " + ex.GetType().Name + ": " + ex.Message);
                 }
             }
+            _cursor = -1; // pass done
+        }
+
+        /// <summary>
+        /// Fish are never stored from the ground: a live fish is an ItemDrop (with a Fish component), and fish swim at
+        /// the surface, so every fish in the loaded sea / a fish pond ended up in a chest. Fish are picked up by hand.
+        /// </summary>
+        private static bool IsFish(ItemDrop drop)
+        {
+            return drop.GetComponent<Fish>() != null;
+        }
+
+        /// <summary>Begins a pass when it is due (IntakeInterval). False = nothing to do this frame.</summary>
+        private static bool StartPass()
+        {
+            if (Time.time < _next)
+                return false;
+
+            _next = Time.time + Mathf.Max(1f, Plugin.Settings.IntakeInterval.Value);
+            StationOutput.TickPendingIntakeTags();
+            if (!SnapshotDrops())
+                return false;
+
+            PlayerScratch.Clear();
+            List<Player> live = Player.GetAllPlayers();
+            if (live != null && live.Count > 0)
+                PlayerScratch.AddRange(live);
+            if (PlayerScratch.Count == 0)
+                return false;
+
+            _storeRange = Plugin.Settings.StoreReach();
+            _loadedArea = Plugin.Settings.AutomationLoadedArea.Value;
+            _cap = Plugin.Settings.MaxTransfersPerTick.Value;
+            _moved = 0;
+            NearbyIndex.BeginStorePass();
+            UsableMemo.Clear();
+            _cursor = 0;
+            return true;
         }
 
         private static bool SnapshotDrops()
@@ -127,7 +207,46 @@ namespace StoreAndCraft
             return false;
         }
 
+        private static readonly List<Container> TargetScratch = new List<Container>(1);
+
+        /// <summary>
+        /// Whole loaded base: the chest that took this item type last time (same intake link) first, without a search.
+        /// Only when it is gone or cannot take it the base is searched, and the result is remembered.
+        /// </summary>
         private static Container BestChest(ItemDrop drop, float storeRange)
+        {
+            if (!TargetChests.Active || drop.m_itemData.m_shared == null)
+                return SearchChest(drop, storeRange);
+
+            string shared = drop.m_itemData.m_shared.m_name;
+            Vector3 pos = drop.transform.position;
+            int intakeLink = StationOutput.GetIntakeLink(drop);
+            Container target = TargetChests.Get(shared, intakeLink);
+            if (target != null && NearbyIndex.Usable(target, pos, storeRange)
+                && !(intakeLink < 0 && ChestNames.IsNoDump(target)))
+            {
+                TargetScratch.Clear();
+                TargetScratch.Add(target);
+                Container hit = PickAccepting(TargetScratch, drop.m_itemData, pos, Plugin.Settings.MustHaveExisting.Value,
+                    exactChestLink: intakeLink >= 0 ? intakeLink : -1);
+                TargetScratch.Clear();
+                if (hit != null)
+                    return hit;
+            }
+            if (target != null)
+                TargetChests.Forget(shared, intakeLink);
+            if (TargetChests.RecentlyNone(shared, intakeLink))
+                return null;
+
+            Container found = SearchChest(drop, storeRange);
+            if (found != null)
+                TargetChests.Remember(shared, intakeLink, found);
+            else
+                TargetChests.MarkNone(shared, intakeLink);
+            return found;
+        }
+
+        private static Container SearchChest(ItemDrop drop, float storeRange)
         {
             NearbyIndex.CollectNear(drop.transform.position, storeRange, ChestScratch, UsableMemo);
             bool mustExist = Plugin.Settings.MustHaveExisting.Value;
@@ -173,10 +292,13 @@ namespace StoreAndCraft
         {
             Container best = null;
             float bestDist = float.MaxValue;
+            string shared = mustExist ? ItemIds.SharedName(item) : null;
             for (int i = 0; i < chests.Count; i++)
             {
                 Container candidate = chests[i];
                 if (candidate == null)
+                    continue;
+                if (mustExist && !ItemIndex.MightHold(candidate, shared))
                     continue;
                 if (exactChestLink >= 0 && StationLink.ChestLinkId(candidate) != exactChestLink)
                     continue;
@@ -230,6 +352,10 @@ namespace StoreAndCraft
                 if (candidate == null)
                     continue;
                 if (exactChestLink >= 0 && StationLink.ChestLinkId(candidate) != exactChestLink)
+                    continue;
+                // A loaded chest without the item is not probed (Valheim keeps loaded views current); only chests
+                // that might hold it (or whose view is still empty) get the forced load.
+                if (mustExist && !ItemIndex.MightHold(candidate, ItemIds.SharedName(drop.m_itemData)))
                     continue;
                 if (!NearbyIndex.TryForceProbeForStore(candidate))
                     continue;

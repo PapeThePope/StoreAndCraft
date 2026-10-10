@@ -109,5 +109,21 @@ namespace StoreAndCraft
             float slack = 6f;
             return Vector3.Distance(peer.m_refPos, target) <= range + slack;
         }
+
+        /// <summary>
+        /// True when the target lies in the area loaded around the sender (ZNetScene.InActiveArea around the
+        /// peer's reference position). Local calls (no peer) count as inside.
+        /// </summary>
+        public static bool SenderLoadedArea(long sender, Vector3 target)
+        {
+            if (ZNet.instance == null)
+                return true;
+
+            ZNetPeer peer = ZNet.instance.GetPeer(sender);
+            if (peer == null)
+                return true;
+
+            return ZNetScene.InActiveArea(target, peer.m_refPos);
+        }
     }
 }

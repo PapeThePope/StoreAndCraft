@@ -61,7 +61,7 @@ namespace StoreAndCraft
                 return;
 
             NearbyIndex.Tick();
-            float cfgCraft = Plugin.Settings.CraftRange.Value;
+            float cfgCraft = Plugin.Settings.CraftReach();
             Vector3 origin = player.transform.position;
             CraftingStation station = player.GetCurrentCraftingStation();
             bool leaveOne = RequirementBridge.LeaveOneInChests(player);
@@ -139,7 +139,7 @@ namespace StoreAndCraft
                     return;
 
                 NearbyIndex.Tick();
-                float cfgCraft = Plugin.Settings.CraftRange.Value;
+                float cfgCraft = Plugin.Settings.CraftReach();
                 Vector3 origin = player.transform.position;
                 // Exact ingredient for onlyOne — do not reserve LeaveOne.
                 ConsumeDeficitFromChests(
@@ -171,7 +171,7 @@ namespace StoreAndCraft
                 return null;
 
             NearbyIndex.Tick();
-            float cfgCraft = Plugin.Settings.CraftRange.Value;
+            float cfgCraft = Plugin.Settings.CraftReach();
             Vector3 origin = player.transform.position;
             CraftingStation station = player.GetCurrentCraftingStation();
             int mult = Mathf.Max(1, craftMultiplier);

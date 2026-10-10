@@ -119,7 +119,7 @@ namespace StoreAndCraft
             GameObject prefab = LoadPrefab(id);
             if (prefab == null)
             {
-                LogOnce("missing " + id, "Storage display bundle has no prefab '" + id + "'. Keeping the wood sign.");
+                LogOnceWarn("missing " + id, "Storage display bundle has no prefab '" + id + "'. Keeping the wood sign.");
                 return null;
             }
 
@@ -257,7 +257,7 @@ namespace StoreAndCraft
             if (!File.Exists(path))
             {
                 _bundleFailed = true;
-                LogOnce("nobundle", "Storage display bundle missing (" + path + "). Keeping the wood signs.");
+                LogOnceWarn("nobundle", "Storage display bundle missing (" + path + "). Keeping the wood signs.");
                 return null;
             }
 
@@ -273,7 +273,9 @@ namespace StoreAndCraft
             if (_bundle == null)
             {
                 _bundleFailed = true;
-                LogOnce("badbundle", "Storage display bundle could not be loaded. It must be built with Unity 6000.0.75f1.");
+                LogOnceWarn("badbundle", "Storage display bundle could not be loaded (" + BundleDiagnosis(path)
+                    + "). Displays, scarecrow and feed trough fall back to plain models. The file must be intact"
+                    + " (install the mod again) and built with Unity 6000.0.75f1.");
             }
             return _bundle;
         }
@@ -721,6 +723,48 @@ namespace StoreAndCraft
             if (!Logged.Add(key))
                 return;
             Plugin.Log.LogDebug(message);
+        }
+
+        /// <summary>A real problem: shows in the normal log (once per key).</summary>
+        private static void LogOnceWarn(string key, string message)
+        {
+            if (!Logged.Add(key))
+                return;
+            Plugin.Log.LogWarning(message);
+        }
+
+        /// <summary>
+        /// File size against the size the Unity bundle header announces: a difference means the file is cut off or was
+        /// changed on the way (upload), the same size means the content itself does not load here.
+        /// </summary>
+        private static string BundleDiagnosis(string path)
+        {
+            try
+            {
+                byte[] head = new byte[256];
+                int n;
+                using (FileStream fs = File.OpenRead(path))
+                    n = fs.Read(head, 0, head.Length);
+                long actual = new FileInfo(path).Length;
+                string sig = System.Text.Encoding.ASCII.GetString(head, 0, Math.Min(7, n));
+                int o = 12; // "UnityFS" + 0 + version (4 bytes, big endian)
+                for (int zeros = 0; zeros < 2 && o < n; o++)
+                {
+                    if (head[o] == 0)
+                        zeros++;
+                }
+                long announced = -1;
+                if (o + 8 <= n)
+                {
+                    for (int i = 0; i < 8; i++)
+                        announced = (announced << 8) | head[o + i];
+                }
+                return "file " + actual + " bytes, header says " + announced + " bytes, signature '" + sig + "'";
+            }
+            catch (Exception ex)
+            {
+                return "file not readable: " + ex.Message;
+            }
         }
     }
     /// <summary>

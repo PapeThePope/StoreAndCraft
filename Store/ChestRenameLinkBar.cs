@@ -8,7 +8,7 @@ using UnityEngine.UI;
 namespace StoreAndCraft
 {
     /// <summary>
-    /// Rename-chest extras: Ignore / Manual fill / No dump / Show-on-display toggles + l1–l9 link grid.
+    /// Rename-chest extras: Ignore / Only build/craft / Only stations / Show-on-display toggles + l1–l9 link grid.
     /// The toggles hold their state here and are saved as chest flags (ChestNames.FlagsKey) when the
     /// dialog is confirmed; the name field only keeps the name and the [lN] link tag.
     /// </summary>
@@ -22,7 +22,7 @@ namespace StoreAndCraft
 
         private static GameObject _ignoreToggle;
         private static GameObject _showToggle;
-        private static GameObject _manualToggle;
+        private static GameObject _craftOnlyToggle;
         private static GameObject _noDumpToggle;
         private static int _flags;
         private static GameObject _linkGrid;
@@ -53,18 +53,18 @@ namespace StoreAndCraft
             bool showOnDisplay = (_flags & ChestNames.FlagShow) != 0;
             int linkId = StationLink.ParseFromName(current);
             bool showOk = ignore;
-            bool manual = (_flags & ChestNames.FlagManual) != 0 && !ignore;
+            bool craftOnly = (_flags & ChestNames.FlagCraftOnly) != 0 && !ignore;
             bool noDump = (_flags & ChestNames.FlagNoDump) != 0;
 
-            // Left: Manual fill, No dump. Right: Ignore next to Show on display. Each mode has a "?"
+            // Left: Only stations, Only build/craft. Right: Ignore next to Show on display. Each mode has a "?"
             // that explains it on hover.
             RectTransform panelRect = panelRt;
-            RectTransform manualRt = AddModeBlock(panelRect, "SAC_ManualBlock", Loc.T("Manual fill", "Manuell befüllen"),
-                manual, OnManualClicked, ChestModeHelp.Mode.Manual, false, out _manualToggle);
-            manualRt.anchoredPosition = new Vector2(10f, -6f);
             RectTransform noDumpRt = AddModeBlock(panelRect, "SAC_NoDumpBlock", Loc.T("Only stations", "Nur Stationen"),
                 noDump, OnNoDumpClicked, ChestModeHelp.Mode.NoDump, false, out _noDumpToggle);
-            noDumpRt.anchoredPosition = new Vector2(10f + manualRt.sizeDelta.x + 16f, -6f);
+            noDumpRt.anchoredPosition = new Vector2(10f, -6f);
+            RectTransform craftOnlyRt = AddModeBlock(panelRect, "SAC_CraftOnlyBlock", Loc.T("Only build/craft", "Nur Bauen/Craften"),
+                craftOnly, OnCraftOnlyClicked, ChestModeHelp.Mode.CraftOnly, false, out _craftOnlyToggle);
+            craftOnlyRt.anchoredPosition = new Vector2(10f + noDumpRt.sizeDelta.x + 16f, -6f);
 
             // Show on display — far right, only when Ignore is on
             var showBlock = new GameObject("SAC_ShowBlock", typeof(RectTransform));
@@ -112,7 +112,7 @@ namespace StoreAndCraft
             ChestModeHelp.Reset();
             _ignoreToggle = null;
             _showToggle = null;
-            _manualToggle = null;
+            _craftOnlyToggle = null;
             _noDumpToggle = null;
             _flags = 0;
             _linkGrid = null;
@@ -218,10 +218,9 @@ namespace StoreAndCraft
             int link = StationLink.ParseFromName(current);
             if (ignore && link > 0)
                 WriteFieldText(StationLink.ApplyToName(current, link));
-            // Ignore, Manual fill and No dump are exclusive modes (each already includes the weaker
-            // ones); turning Ignore off also drops Show.
+            // Ignore, Only build/craft and Only stations are exclusive modes; turning Ignore off also drops Show.
             _flags = ignore
-                ? (_flags | ChestNames.FlagIgnore) & ~(ChestNames.FlagManual | ChestNames.FlagNoDump)
+                ? (_flags | ChestNames.FlagIgnore) & ~(ChestNames.FlagCraftOnly | ChestNames.FlagNoDump)
                 : _flags & ~(ChestNames.FlagIgnore | ChestNames.FlagShow);
             RefreshToggles();
             RefreshLinks();
@@ -236,26 +235,26 @@ namespace StoreAndCraft
             RefreshLinks();
         }
 
-        /// <summary>Manual fill on clears Ignore / Show / No dump (it includes them). The link stays.</summary>
-        private static void OnManualClicked()
+        /// <summary>Only build/craft on clears Ignore / Show / Only stations (exclusive modes). The link stays.</summary>
+        private static void OnCraftOnlyClicked()
         {
-            if ((_flags & ChestNames.FlagManual) != 0)
-                _flags &= ~ChestNames.FlagManual;
+            if ((_flags & ChestNames.FlagCraftOnly) != 0)
+                _flags &= ~ChestNames.FlagCraftOnly;
             else
-                _flags = (_flags | ChestNames.FlagManual)
+                _flags = (_flags | ChestNames.FlagCraftOnly)
                     & ~(ChestNames.FlagIgnore | ChestNames.FlagShow | ChestNames.FlagNoDump);
             RefreshToggles();
             RefreshLinks();
         }
 
-        /// <summary>No dump only makes sense alone (Ignore / Manual fill already block more). Works with a link.</summary>
+        /// <summary>No dump only makes sense alone (Ignore / Only build/craft are other modes). Works with a link.</summary>
         private static void OnNoDumpClicked()
         {
             if ((_flags & ChestNames.FlagNoDump) != 0)
                 _flags &= ~ChestNames.FlagNoDump;
             else
                 _flags = (_flags | ChestNames.FlagNoDump)
-                    & ~(ChestNames.FlagIgnore | ChestNames.FlagShow | ChestNames.FlagManual);
+                    & ~(ChestNames.FlagIgnore | ChestNames.FlagShow | ChestNames.FlagCraftOnly);
             RefreshToggles();
         }
 
@@ -264,7 +263,7 @@ namespace StoreAndCraft
             string current = ReadFieldText();
             string next = StationLink.ApplyToName(current, linkId);
             // Link and Ignore are mutually exclusive — picking a link clears Ignore / Show.
-            // Manual fill and No dump stay.
+            // Only build/craft and Only stations stay.
             if (StationLink.ParseFromName(next) > 0)
                 _flags &= ~(ChestNames.FlagIgnore | ChestNames.FlagShow);
             WriteFieldText(next);
@@ -285,7 +284,7 @@ namespace StoreAndCraft
             bool ignore = (_flags & ChestNames.FlagIgnore) != 0;
             UiToggle.SetState(_ignoreToggle, ignore, true);
             UiToggle.SetState(_showToggle, (_flags & ChestNames.FlagShow) != 0, ignore);
-            UiToggle.SetState(_manualToggle, (_flags & ChestNames.FlagManual) != 0, true);
+            UiToggle.SetState(_craftOnlyToggle, (_flags & ChestNames.FlagCraftOnly) != 0, true);
             UiToggle.SetState(_noDumpToggle, (_flags & ChestNames.FlagNoDump) != 0, true);
         }
 

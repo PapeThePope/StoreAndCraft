@@ -30,6 +30,20 @@ namespace StoreAndCraft
             _dirty = true;
         }
 
+        /// <summary>
+        /// Only a station capacity change needs Apply (it walks every Smelter / Beehive object, prefabs included:
+        /// tens of ms in a big modpack). Other settings (F10 save, activity log on / off) skip it.
+        /// </summary>
+        internal static bool IsCapSetting(BepInEx.Configuration.ConfigEntryBase entry)
+        {
+            ModConfig c = Plugin.Settings;
+            if (c == null || entry == null)
+                return true;
+            return entry == c.KilnMaxWood || entry == c.SmelterMaxOre || entry == c.SmelterMaxCoal
+                || entry == c.BlastFurnaceMaxOre || entry == c.BlastFurnaceMaxCoal
+                || entry == c.EitrRefineryMaxInput || entry == c.EitrRefineryMaxSap || entry == c.BeehiveMaxHoney;
+        }
+
         /// <summary>Plugin.Update: cheap unless dirty or the scene changed (world load).</summary>
         internal static void Tick()
         {

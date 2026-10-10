@@ -16,6 +16,7 @@ namespace StoreAndCraft
     internal static class SmelterCatchUp
     {
         public const string CreditZdoKey = "SAC_catchUp";
+        public static readonly int CreditZdoKeyHash = CreditZdoKey.GetStableHashCode();
 
         private const double MinGapSeconds = 60.0;
         private const int MaxPackagesPerPulse = 2;
@@ -151,11 +152,11 @@ namespace StoreAndCraft
             if (idle < MinGapSeconds)
                 return;
 
-            float credit = zdo.GetFloat(CreditZdoKey, 0f);
+            float credit = zdo.GetFloat(CreditZdoKeyHash, 0f);
             float next = Mathf.Min(MaxCreditSeconds(), credit + (float)idle);
             if (next <= credit)
                 return;
-            zdo.Set(CreditZdoKey, next);
+            zdo.Set(CreditZdoKeyHash, next);
         }
 
         // ---------------- Spend credit (inside the auto-fill pulse) ----------------
@@ -175,7 +176,7 @@ namespace StoreAndCraft
                 ZNetView nv = smelter.GetComponent<ZNetView>();
                 if (nv == null || !nv.IsValid())
                     continue;
-                if (nv.GetZDO().GetFloat(CreditZdoKey, 0f) > 0f)
+                if (nv.GetZDO().GetFloat(CreditZdoKeyHash, 0f) > 0f)
                     return true;
             }
             return false;
@@ -198,7 +199,7 @@ namespace StoreAndCraft
                 ZNetView nv = smelter.GetComponent<ZNetView>();
                 if (nv == null || !nv.IsValid())
                     continue;
-                float credit = nv.GetZDO().GetFloat(CreditZdoKey, 0f);
+                float credit = nv.GetZDO().GetFloat(CreditZdoKeyHash, 0f);
                 if (credit <= 0f)
                     continue;
                 if (ContainerFilter.SqrDistance(playerPos, smelter.transform.position) > rangeSq)
@@ -343,22 +344,22 @@ namespace StoreAndCraft
                 return Stop(nv, label, Loc.T("no ore in chests", "kein Erz in Kisten"));
 
             string chestLabel;
-            bool inChest = StationOutput.TryDepositNear(smelter, outPrefab, oreGot, out chestLabel);
+            bool inChest = StationOutput.TryDepositNear(smelter, outPrefab, oreGot, out chestLabel, out Container outChest);
             if (!inChest)
                 SpawnVanilla(smelter, conv.m_from.gameObject.name, oreGot);
 
             float left = Mathf.Max(0f, credit - oreGot * smelter.m_secPerProduct / power);
             if (left < 1f || !inChest)
-                zdo.Set(CreditZdoKey, 0f);
+                zdo.Set(CreditZdoKeyHash, 0f);
             else
-                zdo.Set(CreditZdoKey, left);
+                zdo.Set(CreditZdoKeyHash, left);
 
             string oreLabel = DisplayFilters.ItemLabel(oreShared);
             string fuelLabel = fuelPer > 0 ? DisplayFilters.ItemLabel(fuelShared) : null;
             string outLabel = DisplayFilters.ItemLabel(conv.m_to.m_itemData.m_shared.m_name);
             string prefix = Loc.T("Catch-up", "Nachholen") + " " + label + ": ";
             string used = oreGot + "x " + oreLabel + (fuelPer > 0 ? " + " + (oreGot * fuelPer) + "x " + fuelLabel : "");
-            string made = oreGot + "x " + outLabel + " -> " + (inChest ? chestLabel : ActivityLog.Ground());
+            string made = oreGot + "x " + outLabel + " -> " + (inChest ? ActivityLog.Chest(outChest) : ActivityLog.Ground());
             ActivityLog.Add(prefix + Loc.T("used", "verbraucht") + " " + used);
             ActivityLog.Add(prefix + Loc.T("made", "hergestellt") + " " + made);
             Plugin.Log.LogDebug("[CatchUp] " + prefix + "used " + used + ", made " + made
@@ -445,9 +446,9 @@ namespace StoreAndCraft
 
         private static bool Stop(ZNetView nv, string label, string reason)
         {
-            if (nv != null && nv.IsValid() && nv.GetZDO().GetFloat(CreditZdoKey, 0f) > 0f)
+            if (nv != null && nv.IsValid() && nv.GetZDO().GetFloat(CreditZdoKeyHash, 0f) > 0f)
             {
-                nv.GetZDO().Set(CreditZdoKey, 0f);
+                nv.GetZDO().Set(CreditZdoKeyHash, 0f);
                 bool hadPackages = Sums.ContainsKey(nv.GetInstanceID());
                 Finish(nv, reason);
                 if (!hadPackages && !string.IsNullOrEmpty(reason))
@@ -460,7 +461,7 @@ namespace StoreAndCraft
         private static void Clear(ZNetView nv)
         {
             if (nv != null && nv.IsValid() && nv.IsOwner())
-                nv.GetZDO().Set(CreditZdoKey, 0f);
+                nv.GetZDO().Set(CreditZdoKeyHash, 0f);
         }
 
         private static float Power(Smelter smelter)
@@ -590,7 +591,7 @@ namespace StoreAndCraft
             ZNetView nv = smelter.GetComponent<ZNetView>();
             if (nv == null || !nv.IsValid())
                 return;
-            float credit = nv.GetZDO().GetFloat(CreditZdoKey, 0f);
+            float credit = nv.GetZDO().GetFloat(CreditZdoKeyHash, 0f);
             if (credit < 60f)
                 return;
             int minutes = Mathf.RoundToInt(credit / 60f);

@@ -7,12 +7,36 @@ namespace StoreAndCraft
     {
         private static float _next;
 
+        // Only a chest whose contents changed can have something new to merge: Container.OnContainerChanged
+        // (every change, also loads and other players' edits) marks it, the pass only looks at marked chests.
+        // Everything in range is looked at once after switching on / loading (seed) and when the list overflows.
+        private static readonly HashSet<Container> Changed = new HashSet<Container>();
+        private static bool _seedAll = true;
+        private const int MaxChanged = 4096;
+
+        internal static void MarkChanged(Container chest)
+        {
+            if (chest == null)
+                return;
+            if (Changed.Count >= MaxChanged)
+            {
+                Changed.Clear();
+                _seedAll = true;
+                return;
+            }
+            Changed.Add(chest);
+        }
+
         public static void Tick()
         {
-            if (Plugin.Settings == null || !Plugin.Settings.ModEnabled.Value || !Plugin.Settings.StoreEnabled.Value)
+            if (Plugin.Settings == null || !Plugin.Settings.ModEnabled.Value || !Plugin.Settings.StoreEnabled.Value
+                || !Plugin.Settings.AutoStackEnabled.Value)
+            {
+                // Off: nothing to remember; switched on again, every chest is looked at once.
+                Changed.Clear();
+                _seedAll = true;
                 return;
-            if (!Plugin.Settings.AutoStackEnabled.Value)
-                return;
+            }
 
             Player player = Player.m_localPlayer;
             if (player == null || player.IsDead() || player.IsTeleporting())
@@ -22,17 +46,34 @@ namespace StoreAndCraft
                 return;
             _next = Time.time + Mathf.Max(1f, Plugin.Settings.IntakeInterval.Value);
 
-            float range = Mathf.Max(Plugin.Settings.StoreRange.Value, Plugin.Settings.StorageRange.Value);
+            float range = Mathf.Max(Plugin.Settings.StoreReach(), Plugin.Settings.StorageReach());
             NearbyIndex.Tick();
+            bool seed = _seedAll;
+            _seedAll = false;
             foreach (Container chest in NearbyIndex.Within(player.transform.position, range))
             {
                 if (chest == null)
                     continue;
+                if (!seed && !Changed.Contains(chest))
+                    continue;
                 ZNetView nv = Refs.View(chest);
                 if (nv == null || !nv.IsOwner())
+                {
+                    MarkChanged(chest); // tried again when we own it
                     continue;
+                }
+                // Look at the chest as it is first: no load / save / redraw for a chest with nothing to merge.
+                if (!HasMergeable(chest.GetInventory()))
+                {
+                    Changed.Remove(chest);
+                    continue;
+                }
                 if (!ContainerFilter.TryReadyForWrite(chest))
+                {
+                    MarkChanged(chest); // not loaded yet: tried again next pass
                     continue;
+                }
+                Changed.Remove(chest);
                 Inventory chestInv = chest.GetInventory();
                 if (chestInv == null || chestInv.NrOfItems() <= 0)
                     continue;
@@ -73,6 +114,10 @@ namespace StoreAndCraft
                         continue;
                     if (!SameStackType(dest, src))
                         continue;
+                    // Only a partial stack gives up its items. Taking from a full stack just swaps
+                    // "9/50" and "50/50" with each other every pass (nothing is saved, the chest is rewritten).
+                    if (StackLimits.RoomInStack(src) <= 0)
+                        continue;
                     if (skipHotbarAndEquipped && SkipPlayerItem(src))
                         continue;
 
@@ -86,15 +131,56 @@ namespace StoreAndCraft
                 }
             }
 
+            int removed = 0;
             var leftover = new List<ItemDrop.ItemData>(inv.GetAllItems());
             foreach (ItemDrop.ItemData item in leftover)
             {
                 if (item != null && item.m_stack <= 0)
+                {
                     inv.RemoveItem(item);
+                    removed++;
+                }
             }
 
-            Refs.NotifyChanged(inv);
+            // Only a real change is reported (it saves the chest and redraws displays).
+            if (merged > 0 || removed > 0)
+                Refs.NotifyChanged(inv);
             return merged;
+        }
+
+        private struct StackKind : System.IEquatable<StackKind>
+        {
+            public string Name;
+            public int Quality;
+            public int WorldLevel;
+
+            public bool Equals(StackKind o) { return Quality == o.Quality && WorldLevel == o.WorldLevel && string.Equals(Name, o.Name); }
+            public override bool Equals(object o) { return o is StackKind && Equals((StackKind)o); }
+            public override int GetHashCode() { return ((Name != null ? Name.GetHashCode() : 0) * 31 + Quality) * 31 + WorldLevel; }
+        }
+
+        private static readonly HashSet<StackKind> PartialScratch = new HashSet<StackKind>();
+
+        /// <summary>True when two partial stacks of the same kind (name, quality, world level) could be merged.</summary>
+        private static bool HasMergeable(Inventory inv)
+        {
+            if (inv == null || inv.NrOfItems() < 2)
+                return false;
+            PartialScratch.Clear();
+            foreach (ItemDrop.ItemData item in inv.GetAllItems())
+            {
+                if (item == null || item.m_shared == null || item.m_stack <= 0)
+                    continue;
+                if (StackLimits.MaxStack(item) <= 1 || StackLimits.RoomInStack(item) <= 0)
+                    continue;
+                if (!PartialScratch.Add(new StackKind { Name = item.m_shared.m_name, Quality = item.m_quality, WorldLevel = item.m_worldLevel }))
+                {
+                    PartialScratch.Clear();
+                    return true;
+                }
+            }
+            PartialScratch.Clear();
+            return false;
         }
 
         private static bool SkipPlayerItem(ItemDrop.ItemData item)

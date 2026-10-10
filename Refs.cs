@@ -18,6 +18,23 @@ namespace StoreAndCraft
         private static readonly FieldInfo WearRenderersField = AccessTools.Field(typeof(WearNTear), "m_renderers");
         private static readonly MethodInfo InventoryChanged = FindInventoryChanged();
 
+        // Compiled field access for the hot paths (every chest check, every drop): FieldInfo.GetValue is reflection
+        // on each call. Null when the field is missing in this Valheim version: then the FieldInfo / GetComponent path.
+        private static readonly AccessTools.FieldRef<Container, ZNetView> ContainerNviewRef = RefOrNull<Container, ZNetView>("m_nview");
+        private static readonly AccessTools.FieldRef<ItemDrop, ZNetView> ItemDropNviewRef = RefOrNull<ItemDrop, ZNetView>("m_nview");
+
+        private static AccessTools.FieldRef<T, F> RefOrNull<T, F>(string field) where T : class
+        {
+            try
+            {
+                return AccessTools.Field(typeof(T), field) != null ? AccessTools.FieldRefAccess<T, F>(field) : null;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
         /// <summary>Inventory.Changed, whatever its parameters are in this Valheim version (no Harmony warning when it differs).</summary>
         private static MethodInfo FindInventoryChanged()
         {
@@ -38,7 +55,13 @@ namespace StoreAndCraft
         {
             if (container == null)
                 return null;
-            if (ContainerNview != null)
+            if (ContainerNviewRef != null)
+            {
+                ZNetView fast = ContainerNviewRef(container);
+                if (fast != null)
+                    return fast;
+            }
+            else if (ContainerNview != null)
             {
                 var nv = ContainerNview.GetValue(container) as ZNetView;
                 if (nv != null)
@@ -58,7 +81,13 @@ namespace StoreAndCraft
         {
             if (drop == null)
                 return null;
-            if (ItemDropNview != null)
+            if (ItemDropNviewRef != null)
+            {
+                ZNetView fast = ItemDropNviewRef(drop);
+                if (fast != null)
+                    return fast;
+            }
+            else if (ItemDropNview != null)
             {
                 var nv = ItemDropNview.GetValue(drop) as ZNetView;
                 if (nv != null)

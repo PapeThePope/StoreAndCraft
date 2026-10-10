@@ -23,6 +23,9 @@ namespace StoreAndCraft
             public GameObject Root;
             public TextMeshProUGUI Text;
             public float Height = -1f;
+            // Short notice ("Chest full"): refreshed by its station, expires by itself when it stops.
+            public string Notice;
+            public float NoticeUntil;
         }
 
         private static readonly Dictionary<int, Entry> Entries = new Dictionary<int, Entry>();
@@ -52,6 +55,44 @@ namespace StoreAndCraft
             Refresh(e);
         }
 
+        private const float NoticeSeconds = 4f;
+        private static readonly List<int> ExpiredScratch = new List<int>();
+
+        /// <summary>Notice above the station (any station, linked or not). The station sets it again every tick.</summary>
+        internal static void SetNotice(Component station, string text, float seconds = NoticeSeconds)
+        {
+            if (station == null || string.IsNullOrEmpty(text))
+                return;
+            if (Plugin.Settings != null && !Plugin.Settings.ShowStationNotices.Value)
+            {
+                ClearNotice(station);
+                return;
+            }
+            int id = station.GetInstanceID();
+            Entry e;
+            if (!Entries.TryGetValue(id, out e))
+            {
+                e = new Entry { Station = station };
+                Entries[id] = e;
+            }
+            e.NoticeUntil = Time.unscaledTime + seconds;
+            if (e.Notice == text)
+                return;
+            e.Notice = text;
+            Refresh(e);
+        }
+
+        internal static void ClearNotice(Component station)
+        {
+            if (station == null || Entries.Count == 0)
+                return;
+            Entry e;
+            if (!Entries.TryGetValue(station.GetInstanceID(), out e) || string.IsNullOrEmpty(e.Notice))
+                return;
+            e.Notice = null;
+            Refresh(e);
+        }
+
         internal static void ClearMissing(Component station, string slot)
         {
             if (station == null)
@@ -73,14 +114,28 @@ namespace StoreAndCraft
             if (cam == null)
                 return;
             Vector3 camPos = cam.transform.position;
-            foreach (Entry e in Entries.Values)
+            ExpiredScratch.Clear();
+            foreach (KeyValuePair<int, Entry> kv in Entries)
             {
+                Entry e = kv.Value;
+                if (!string.IsNullOrEmpty(e.Notice) && Time.unscaledTime > e.NoticeUntil)
+                    ExpiredScratch.Add(kv.Key);
                 if (e.Root == null || !e.Root.activeSelf)
                     continue;
                 Vector3 dir = e.Root.transform.position - camPos;
                 if (dir.sqrMagnitude > 0.0001f)
                     e.Root.transform.rotation = Quaternion.LookRotation(dir, Vector3.up);
             }
+            for (int i = 0; i < ExpiredScratch.Count; i++)
+            {
+                Entry e;
+                if (Entries.TryGetValue(ExpiredScratch[i], out e))
+                {
+                    e.Notice = null;
+                    Refresh(e);
+                }
+            }
+            ExpiredScratch.Clear();
         }
 
         /// <summary>Called from the StationAutoFill pulse (every 2.5 s), not on its own timer.</summary>
@@ -89,7 +144,8 @@ namespace StoreAndCraft
             if (Entries.Count == 0)
                 return;
             Player player = Player.m_localPlayer;
-            float range = Plugin.Settings != null ? Plugin.Settings.AutoFillRange.Value : 0f;
+            float stationRange = Plugin.Settings != null ? Plugin.Settings.AutoFillPlayerReach() : 0f;
+            float scarecrowRange = Plugin.Settings != null ? Plugin.Settings.ScarecrowPlayerReach() : 0f;
             Scratch.Clear();
             foreach (KeyValuePair<int, Entry> kv in Entries)
             {
@@ -99,6 +155,9 @@ namespace StoreAndCraft
                     Scratch.Add(kv.Key);
                     continue;
                 }
+                if (e.Missing.Count == 0)
+                    continue; // notice only: it expires on its own
+                float range = e.Station is Scarecrow ? scarecrowRange : stationRange;
                 string reason = StationLink.Get(e.Station) <= 0 ? "unlinked"
                     : !StationAutoFill.IsAutoFillOn(e.Station) ? "auto-fill off"
                     : ContainerFilter.SqrDistance(player.transform.position, e.Station.transform.position)
@@ -107,7 +166,11 @@ namespace StoreAndCraft
                 if (reason != null)
                 {
                     LogCleared(e.Station, "all", reason);
-                    Scratch.Add(kv.Key);
+                    e.Missing.Clear();
+                    if (string.IsNullOrEmpty(e.Notice))
+                        Scratch.Add(kv.Key);
+                    else
+                        Refresh(e);
                     continue;
                 }
 
@@ -122,7 +185,12 @@ namespace StoreAndCraft
                     changed = true;
                 }
                 if (e.Missing.Count == 0)
-                    Scratch.Add(kv.Key);
+                {
+                    if (string.IsNullOrEmpty(e.Notice))
+                        Scratch.Add(kv.Key);
+                    else
+                        Refresh(e);
+                }
                 else if (changed)
                     Refresh(e);
             }
@@ -153,7 +221,7 @@ namespace StoreAndCraft
 
         private static void Refresh(Entry e)
         {
-            if (e.Missing.Count == 0)
+            if (e.Missing.Count == 0 && string.IsNullOrEmpty(e.Notice))
             {
                 if (e.Station != null)
                     Remove(e.Station.GetInstanceID());
@@ -165,9 +233,11 @@ namespace StoreAndCraft
             if (e.Text == null)
                 return;
 
-            var parts = new List<string>(e.Missing.Count);
+            var parts = new List<string>(e.Missing.Count + 1);
             foreach (string what in e.Missing.Values)
                 parts.Add("<s>" + what + "</s>");
+            if (!string.IsNullOrEmpty(e.Notice))
+                parts.Add(e.Notice);
             e.Text.text = "<color=" + Red + ">" + string.Join("   ", parts.ToArray()) + "</color>";
             e.Root.transform.position = e.Station.transform.position + Vector3.up * e.Height;
             e.Root.SetActive(true);

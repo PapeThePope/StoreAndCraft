@@ -11,6 +11,7 @@ namespace StoreAndCraft
     internal static class StationLink
     {
         public const string ZdoKey = "SAC_stationLink";
+        public static readonly int ZdoKeyHash = ZdoKey.GetStableHashCode();
         public const int MaxId = 9;
 
         /// <summary>
@@ -110,7 +111,7 @@ namespace StoreAndCraft
             ZDO zdo = nv != null && nv.IsValid() ? nv.GetZDO() : null;
             if (zdo == null)
                 return 0;
-            return Clamp(zdo.GetInt(ZdoKey, 0));
+            return Clamp(zdo.GetInt(ZdoKeyHash, 0));
         }
 
         public static void Set(Component station, int linkId)
@@ -124,7 +125,7 @@ namespace StoreAndCraft
                 return;
             if (!nv.IsOwner())
                 nv.ClaimOwnership();
-            nv.GetZDO().Set(ZdoKey, Clamp(linkId));
+            nv.GetZDO().Set(ZdoKeyHash, Clamp(linkId));
         }
 
         /// <summary>Toggle: same id again clears to none.</summary>
@@ -198,6 +199,10 @@ namespace StoreAndCraft
 
             // Link -1 = craft / build (no station): chests set to Only stations are for station in / output only.
             if (stationLinkId < 0 && ChestNames.IsNoDump(chest))
+                return false;
+
+            // Chests set to Only build/craft are for crafting and building only, no station takes from them.
+            if (stationLinkId >= 0 && ChestNames.IsCraftOnly(chest))
                 return false;
 
             if (stationLinkId < 0)

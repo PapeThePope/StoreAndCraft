@@ -53,7 +53,16 @@ namespace StoreAndCraft
             public Slider Slider;
             public TMP_InputField Input;
             public bool Syncing;
+            /// <summary>Shown only when "Advanced" is opened (the old player ranges).</summary>
+            public bool Advanced;
+            public GameObject Go;
         }
+
+        private static bool _showAdvanced;
+        private const string LoadedAreaKey = "automationloadedarea";
+        /// <summary>The switch as shown in the open panel (not saved yet).</summary>
+        private static bool _loadedAreaOn;
+        private static TextMeshProUGUI _advancedHeader;
 
         // SAC-CATCHUP
         private static bool _catchUp;
@@ -174,6 +183,7 @@ namespace StoreAndCraft
             _content = null;
             _infoBody = null;
             _infoHeader = null;
+            _advancedHeader = null;
             _status = null;
             if (_root != null)
             {
@@ -456,17 +466,33 @@ namespace StoreAndCraft
                 "Crafting, building and [E] on stations can use materials from chests this close to you.",
                 "Craften, Bauen und [E] an Stationen nutzen Material aus Kisten, die so nah bei dir stehen.");
             AddRow("autofillrange", "Auto-fill (player to station)", "Auto-Fill (Spieler zur Station)",
-                "Stations with auto-fill (B) are refilled while you are at most this far away from them.",
-                "Stationen mit Auto-Fill (B) werden befüllt, solange du höchstens so weit von ihnen weg bist.");
-            AddRow("autofillchestrange", "Auto-fill + auto-store (station to chest, 0 = same)", "Auto-Fill + Auto-Lagern (Station zur Kiste, 0 = wie oben)",
-                "Which chests around a station supply it, and where finished items (N) go. 0 uses the auto-fill value.",
+                "Stations with auto-fill (B) are refilled while you are at most this far away from them. Only used while \"whole loaded base\" is off; it is also the station chest range when that one is 0.",
+                "Stationen mit Auto-Fill (B) werden befüllt, solange du höchstens so weit von ihnen weg bist. Gilt nur, wenn \"ganze geladene Base\" aus ist; außerdem die Stationen-Kisten-Reichweite, wenn die auf 0 steht.");
+            AddRow("autofillchestrange", "Auto-fill + auto-store (station to chest, 0 = same)", "Auto-Fill + Auto-Lagern (Station zur Kiste, 0 = wie Auto-Fill)",
+                "Which chests around a station supply it, and where finished items (N) go. 0 uses the auto-fill value (Advanced).",
                 "Aus welchen Kisten rund um eine Station Material kommt und wohin fertige Items (N) gehen. 0 = Wert von Auto-Fill.");
-            AddRow("displayrange", "Storage displays (default)", "Storage Displays (Standard)",
-                "Default chest search radius around each Storage Display. Each display can use its own value (Alt+R).",
-                "Standard-Suchradius für Kisten rund um ein Storage Display. Jedes Display kann einen eigenen Wert haben (Alt+R).");
+            AddRow("scarecrowrange", "Scarecrow (player to scarecrow, 0 = same)", "Vogelscheuche (Spieler zur Vogelscheuche, 0 = wie Auto-Fill)",
+                "The scarecrow plants and harvests while you are at most this far away from it. 0 uses the auto-fill value.",
+                "Die Vogelscheuche pflanzt und erntet, solange du höchstens so weit von ihr weg bist. 0 = Wert von Auto-Fill.");
+            AddRow("scarecrowchestrange", "Scarecrow chests (scarecrow to chest, 0 = same)", "Vogelscheuche-Kisten (Vogelscheuche zur Kiste, 0 = wie Stationen)",
+                "Which chests around the scarecrow supply its seeds and take its harvest. 0 uses the station chest value.",
+                "Aus welchen Kisten rund um die Vogelscheuche sie Samen holt und wohin die Ernte geht. 0 = Wert der Stationen-Kisten.");
+            // Storage Display range: only per display (Alt+R), no slider here.
+            // Without effect while "whole loaded base" is on: shown under Advanced.
+            MarkAdvanced("dumprange", "storerange", "storagerange", "craftrange", "autofillrange",
+                "autofillchestrange", "scarecrowrange", "scarecrowchestrange");
             AddRow("feedtroughrange", "Feed trough (animals)", "Futtertrog (Tiere)",
                 "How far hungry tames notice a feed trough and walk to it.",
                 "Wie weit hungrige gezähmte Tiere einen Futtertrog bemerken und hinlaufen.");
+
+            AddRow("intakeinterval", "Auto-store: seconds between ground scans", "Auto-Lagern: Sekunden zwischen den Boden-Scans",
+                "How often items on the ground are stored (also auto-stack). Lower = items vanish faster, higher = less work for the game.",
+                "Wie oft Items vom Boden eingelagert werden (auch Auto-Stapeln). Weniger = Items verschwinden schneller, mehr = weniger Arbeit für das Spiel.");
+            Row intake = Rows[Rows.Count - 1];
+            intake.Unit = "s";
+            intake.Min = 1f;
+            intake.SliderMax = 30f;
+            intake.Max = 60f;
 
             // SAC-CATCHUP
             _catchUp = Plugin.Settings.CatchUpEnabled.Value;
@@ -495,6 +521,7 @@ namespace StoreAndCraft
             BoolRows.Clear();
             AddBool("storeenabled", "Dump / middle-click store, take stack", "Einlagern / Mittelklick, Stack holen");
             AddBool("autointake", "Auto-store ground items", "Auto-Lagern vom Boden");
+            AddBool("automationloadedarea", "Everything works in the whole loaded base (off = ranges in meters, see Advanced)", "Alles funktioniert in der ganzen geladenen Base (aus = Reichweiten in Metern, siehe Erweitert)");
             AddBool("musthaveexisting", "Chests only take items they already hold", "Kisten nehmen nur Items, die schon drin sind");
             AddBool("autostack", "Auto-stack inside chests", "Stapel in Kisten automatisch zusammenlegen");
             AddBool("craftenabled", "Craft / build / stations use chest items", "Craften / Bauen / Stationen nutzen Kisten-Items");
@@ -556,6 +583,15 @@ namespace StoreAndCraft
             });
         }
 
+        private static void MarkAdvanced(params string[] keys)
+        {
+            for (int i = 0; i < Rows.Count; i++)
+            {
+                if (System.Array.IndexOf(keys, Rows[i].Key) >= 0)
+                    Rows[i].Advanced = true;
+            }
+        }
+
         private static string Format(float value)
         {
             return value.ToString("0.#", CultureInfo.InvariantCulture);
@@ -563,6 +599,19 @@ namespace StoreAndCraft
 
         private static void Save()
         {
+            // No admin: the server values cannot be saved, but the settings for this PC (checkboxes under
+            // "Only for me", hotkeys) already apply when clicked. Save writes them to the config file now.
+            if (!_canEdit)
+            {
+                if (Plugin.Instance != null)
+                    Plugin.Instance.Config.Save();
+                if (_status != null)
+                    _status.text = Loc.T(
+                        "Your settings for this PC are saved. Server values can only be saved by an admin.",
+                        "Deine Einstellungen für diesen PC sind gespeichert. Server-Werte kann nur ein Admin speichern.");
+                return;
+            }
+
             var changes = new List<KeyValuePair<string, float>>();
             for (int i = 0; i < Rows.Count; i++)
             {
@@ -679,7 +728,7 @@ namespace StoreAndCraft
             // Bottom: Save / Close + status line.
             Button save = MakeButton(panel, "Save", Loc.T("Save", "Speichern"), Save);
             Place(save.transform as RectTransform, 0.5f, 0f, 0.5f, 0f, -230f, 78f, -20f, 124f);
-            save.interactable = _canEdit;
+            save.interactable = true; // also without admin: saves the settings for this PC
 
             Button close = MakeButton(panel, "Close", Loc.T("Close", "Schließen"), RequestClose);
             Place(close.transform as RectTransform, 0.5f, 0f, 0.5f, 0f, 20f, 78f, 230f, 124f);
@@ -714,8 +763,52 @@ namespace StoreAndCraft
                     "Nur Admins (Adminliste) dürfen diese Einstellungen auf diesem Server ändern."), Warn, 17f);
             }
 
+            // The main switch sits on top of the ranges: on = no meters needed, the sliders are under Advanced.
+            // Advanced (the meter ranges) sits right below it and is locked while the switch is on.
+            _loadedAreaOn = false;
+            for (int i = 0; i < BoolRows.Count; i++)
+            {
+                BoolRow row = BoolRows[i];
+                if (row.Key != LoadedAreaKey)
+                    continue;
+                _loadedAreaOn = row.Value;
+                AddToggle(Loc.T(row.En, row.De), row.Value, _canEdit, on =>
+                {
+                    row.Value = on;
+                    _loadedAreaOn = on;
+                    RefreshAdvancedLock();
+                });
+            }
+
+            bool anyAdvanced = false;
             for (int i = 0; i < Rows.Count; i++)
-                AddRangeRow(Rows[i]);
+            {
+                if (Rows[i].Advanced)
+                    anyAdvanced = true;
+            }
+
+            // Collapsible: the meter ranges, for anyone who keeps "whole loaded base" off.
+            if (anyAdvanced)
+            {
+                Button advBtn = MakeButton(_content, "AdvancedToggle", "", ToggleAdvanced);
+                AddLayout(advBtn.gameObject, 44f);
+                _advancedHeader = advBtn.GetComponentInChildren<TextMeshProUGUI>(true);
+                for (int i = 0; i < Rows.Count; i++)
+                {
+                    if (!Rows[i].Advanced)
+                        continue;
+                    AddRangeRow(Rows[i]);
+                    if (Rows[i].Go != null)
+                        Rows[i].Go.SetActive(_showAdvanced);
+                }
+                RefreshAdvancedLock();
+            }
+
+            for (int i = 0; i < Rows.Count; i++)
+            {
+                if (!Rows[i].Advanced)
+                    AddRangeRow(Rows[i]);
+            }
 
             AddHeader(Loc.T("Stations", "Stationen"));
             AddToggle(Loc.T( // SAC-CATCHUP
@@ -736,6 +829,8 @@ namespace StoreAndCraft
             for (int i = 0; i < BoolRows.Count; i++)
             {
                 BoolRow row = BoolRows[i];
+                if (row.Key == LoadedAreaKey)
+                    continue; // shown above the ranges
                 AddToggle(Loc.T(row.En, row.De), row.Value, _canEdit, on => row.Value = on);
             }
 
@@ -744,6 +839,9 @@ namespace StoreAndCraft
             AddLocalToggle(Loc.T("Dump skips the hotbar", "Einlagern lässt die Hotbar aus"), Plugin.Settings.IgnoreHotbar);
             AddLocalToggle(Loc.T("Chest flashes when something is stored", "Kiste blinkt beim Einlagern"), Plugin.Settings.HighlightOnStore);
             AddLocalToggle(Loc.T("Map ping on the chest after storing", "Karten-Ping an der Kiste nach dem Einlagern"), Plugin.Settings.PingOnStore);
+            AddLocalToggle(Loc.T("Stack / Sort buttons on the inventory", "Stapeln- / Sortieren-Buttons am Inventar"), Plugin.Settings.ShowBagSortButtons);
+            AddLocalToggle(Loc.T("Stack / Sort buttons on the chest", "Stapeln- / Sortieren-Buttons an der Kiste"), Plugin.Settings.ShowChestSortButtons);
+            AddLocalToggle(Loc.T("Notice above stations (chest full / no chest)", "Hinweis über Stationen (Kiste voll / keine Kiste)"), Plugin.Settings.ShowStationNotices);
 
             // Hotkeys without a range slider (the others sit next to their feature above).
             AddHeader(Loc.T("More hotkeys (only for me, change by clicking)", "Weitere Hotkeys (nur für mich, zum Ändern anklicken)"));
@@ -790,6 +888,53 @@ namespace StoreAndCraft
             sb.direction = Scrollbar.Direction.BottomToTop;
             sr.verticalScrollbar = sb;
             sr.verticalScrollbarVisibility = ScrollRect.ScrollbarVisibility.AutoHide;
+        }
+
+        private static void ToggleAdvanced()
+        {
+            _showAdvanced = !_showAdvanced;
+            for (int i = 0; i < Rows.Count; i++)
+            {
+                if (Rows[i].Advanced && Rows[i].Go != null)
+                    Rows[i].Go.SetActive(_showAdvanced);
+            }
+            RefreshAdvancedHeader();
+            if (_content != null)
+                LayoutRebuilder.ForceRebuildLayoutImmediate(_content);
+        }
+
+        private static void RefreshAdvancedHeader()
+        {
+            if (_advancedHeader == null)
+                return;
+            _advancedHeader.text = (_showAdvanced ? "[-]  " : "[+]  ") + (_loadedAreaOn
+                ? Loc.T("Advanced: ranges in meters (locked while \"whole loaded base\" is on)",
+                    "Erweitert: Reichweiten in Metern (gesperrt, solange \"ganze geladene Base\" an ist)")
+                : Loc.T("Advanced: ranges in meters", "Erweitert: Reichweiten in Metern"));
+        }
+
+        /// <summary>The meter ranges do nothing while "whole loaded base" is on: greyed out and not editable.</summary>
+        private static void RefreshAdvancedLock()
+        {
+            bool editable = _canEdit && !_loadedAreaOn;
+            for (int i = 0; i < Rows.Count; i++)
+            {
+                Row row = Rows[i];
+                if (!row.Advanced)
+                    continue;
+                if (row.Slider != null)
+                    row.Slider.interactable = editable;
+                if (row.Input != null)
+                    row.Input.interactable = editable;
+                if (row.Go != null)
+                {
+                    CanvasGroup group = row.Go.GetComponent<CanvasGroup>();
+                    if (group == null)
+                        group = row.Go.AddComponent<CanvasGroup>();
+                    group.alpha = _loadedAreaOn ? 0.45f : 1f;
+                }
+            }
+            RefreshAdvancedHeader();
         }
 
         private static void ToggleInfo()
@@ -926,6 +1071,7 @@ namespace StoreAndCraft
         private static void AddRangeRow(Row row)
         {
             var go = NewUi("Row_" + row.Key, _content);
+            row.Go = go.gameObject;
             AddLayout(go.gameObject, 64f);
 
             TextMeshProUGUI label = Label(go, "Label", 18f, false);

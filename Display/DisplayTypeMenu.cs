@@ -285,6 +285,8 @@ namespace StoreAndCraft
                 return;
             if (ZInput.GetKeyDown(KeyCode.Escape, true) || ZInput.GetButtonDown("JoyButtonB"))
             {
+                if (DisplayMinimums.CloseEditor()) // SAC-MIN: Escape ends a "Min" edit first, the menu stays open
+                    return;
                 // First Escape only leaves the search box.
                 if (IsTyping)
                 {
@@ -1047,6 +1049,7 @@ namespace StoreAndCraft
             tmp.maxVisibleLines = 2;
             tmp.color = data.On ? Gold : Muted;
             tmp.text = data.Label;
+            DisplayMinimums.AddTileField(rt, _board, data.Shared); // SAC-MIN: "Min" field in the tile
 
             if (wholeCellClick)
                 return;

@@ -245,6 +245,9 @@ namespace StoreAndCraft
                         continue;
                     if (!SameStackType(dest, src))
                         continue;
+                    // Only a partial stack gives up its items (a full one would just swap with this one).
+                    if (StackLimits.RoomInStack(src) <= 0)
+                        continue;
 
                     int move = Mathf.Min(room, src.m_stack);
                     if (move <= 0)

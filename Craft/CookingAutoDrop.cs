@@ -13,6 +13,7 @@ namespace StoreAndCraft
     internal static class CookingAutoDrop
     {
         public const string ZdoKey = "SAC_autoDrop";
+        public static readonly int ZdoKeyHash = ZdoKey.GetStableHashCode();
 
         private static readonly MethodInfo HaveDoneItem =
             AccessTools.Method(typeof(CookingStation), "HaveDoneItem");
@@ -47,7 +48,7 @@ namespace StoreAndCraft
         {
             if (nv == null || !nv.IsValid() || nv.GetZDO() == null)
                 return false;
-            return nv.GetZDO().GetInt(ZdoKey, 0) != 0;
+            return nv.GetZDO().GetInt(ZdoKeyHash, 0) != 0;
         }
 
         public static bool IsOn(CookingStation station)
@@ -163,7 +164,7 @@ namespace StoreAndCraft
                 nv.ClaimOwnership();
 
             bool next = !IsOn(nv);
-            nv.GetZDO().Set(ZdoKey, next ? 1 : 0);
+            nv.GetZDO().Set(ZdoKeyHash, next ? 1 : 0);
 
             player.Message(
                 MessageHud.MessageType.Center,
@@ -185,7 +186,7 @@ namespace StoreAndCraft
             if (nv == null || !nv.IsValid() || !nv.IsOwner())
                 return;
 
-            if (HaveDoneItem == null || !(bool)HaveDoneItem.Invoke(station, null))
+            if (HaveDoneItem == null || !FastCall.Bool(HaveDoneItem, station))
                 return;
 
             StationAutoFill.RequestSoon();
@@ -218,16 +219,79 @@ namespace StoreAndCraft
                     continue;
 
                 string label;
-                if (!StationOutput.TryDepositNear(station, itemName, 1, out label))
+                if (!StationOutput.TryDepositNear(station, itemName, 1, out label, out Container outChest))
+                {
+                    StationChestFull.NoteGrill(station, itemName);
                     return false;
+                }
 
                 SetSlot.Invoke(station, new object[] { i, "", 0f, StatusNotDone, false });
                 nv.InvokeRPC(ZNetView.Everybody, "RPC_SetSlotVisual", i, "");
-                ActivityLog.ToChest(StationOutput.StationLabel(station), 1, label);
+                ActivityLog.ToChest(StationOutput.StationLabel(station), 1, label, outChest);
                 return true;
             }
 
             return false;
+        }
+
+        // Beehive / sap extractor / fermenter tick every 2-10 s: the notice must outlast that.
+        private const float NoticeSlow = 25f;
+
+        internal static void TickHiveNotice(Beehive hive)
+        {
+            ZNetView nv = hive.GetComponent<ZNetView>();
+            if (nv == null || !nv.IsValid() || !nv.IsOwner() || BeeGetHoneyLevel == null)
+                return;
+            int honey = 0;
+            try
+            {
+                honey = FastCall.Int(BeeGetHoneyLevel, hive);
+            }
+            catch
+            {
+            }
+            string prefab = hive.m_honeyItem != null ? hive.m_honeyItem.gameObject.name : "Honey";
+            StationChestFull.TickOutput(hive, prefab, honey, NoticeSlow, true);
+        }
+
+        internal static void TickSapNotice(SapCollector sap)
+        {
+            ZNetView nv = sap.GetComponent<ZNetView>();
+            if (nv == null || !nv.IsValid() || !nv.IsOwner() || nv.GetZDO() == null)
+                return;
+            int level = nv.GetZDO().GetInt(ZDOVars.s_level, 0);
+            string prefab = sap.m_spawnItem != null ? sap.m_spawnItem.gameObject.name : "Sap";
+            StationChestFull.TickOutput(sap, prefab, level, NoticeSlow, true);
+        }
+
+        internal static void TickFermenterNotice(Fermenter fermenter)
+        {
+            ZNetView nv = fermenter.GetComponent<ZNetView>();
+            if (nv == null || !nv.IsValid() || !nv.IsOwner() || nv.GetZDO() == null)
+                return;
+            if (FermenterGetStatus == null || FermenterGetConversion == null)
+                return;
+            string prefab = null;
+            int count = 0;
+            try
+            {
+                if (FastCall.Int(FermenterGetStatus, fermenter) == FermenterStatusReady)
+                {
+                    int content = nv.GetZDO().GetInt(ZDOVars.s_content);
+                    Fermenter.ItemConversion conv =
+                        FermenterGetConversion.Invoke(fermenter, new object[] { content }) as Fermenter.ItemConversion;
+                    if (conv != null && conv.m_to != null && conv.m_producedItems > 0)
+                    {
+                        prefab = conv.m_to.gameObject.name;
+                        count = conv.m_producedItems * Mathf.Max(1, FermenterBatch.Count(fermenter));
+                    }
+                }
+            }
+            catch
+            {
+                return;
+            }
+            StationChestFull.TickOutput(fermenter, prefab, count, NoticeSlow, true);
         }
 
         public static void TryExtractHoney(Beehive hive)
@@ -245,7 +309,7 @@ namespace StoreAndCraft
             int honey;
             try
             {
-                honey = (int)BeeGetHoneyLevel.Invoke(hive, null);
+                honey = FastCall.Int(BeeGetHoneyLevel, hive);
             }
             catch
             {
@@ -261,13 +325,13 @@ namespace StoreAndCraft
                 ? hive.m_honeyItem.gameObject.name
                 : "Honey";
             string label;
-            if (StationOutput.TryDepositNear(hive, honeyPrefab, honey, out label))
+            if (StationOutput.TryDepositNear(hive, honeyPrefab, honey, out label, out Container outChest))
             {
                 if (BeeResetLevel != null)
                     BeeResetLevel.Invoke(hive, null);
                 else if (nv.GetZDO() != null)
                     nv.GetZDO().Set(ZDOVars.s_level, 0);
-                ActivityLog.ToChest(StationOutput.StationLabel(hive), honey, label);
+                ActivityLog.ToChest(StationOutput.StationLabel(hive), honey, label, outChest);
                 return;
             }
 
@@ -307,12 +371,12 @@ namespace StoreAndCraft
 
             string prefab = sap.m_spawnItem != null ? sap.m_spawnItem.gameObject.name : "Sap";
             string label;
-            if (!StationOutput.TryDepositNear(sap, prefab, level, out label))
+            if (!StationOutput.TryDepositNear(sap, prefab, level, out label, out Container outChest))
                 return;
 
             nv.GetZDO().Set(ZDOVars.s_level, 0);
             nv.InvokeRPC(ZNetView.Everybody, "RPC_UpdateEffects");
-            ActivityLog.ToChest(StationOutput.StationLabel(sap), level, label);
+            ActivityLog.ToChest(StationOutput.StationLabel(sap), level, label, outChest);
         }
 
         /// <summary>Ready barrel: put the mead into a chest; no chest → vanilla tap to the ground.</summary>
@@ -330,7 +394,7 @@ namespace StoreAndCraft
             int status;
             try
             {
-                status = Convert.ToInt32(FermenterGetStatus.Invoke(fermenter, null));
+                status = FastCall.Int(FermenterGetStatus, fermenter);
             }
             catch
             {
@@ -352,7 +416,7 @@ namespace StoreAndCraft
             StationAutoFill.RequestSoon();
 
             string label;
-            if (StationOutput.TryDepositNear(fermenter, prefab, count, out label))
+            if (StationOutput.TryDepositNear(fermenter, prefab, count, out label, out Container outChest))
             {
                 nv.GetZDO().Set(ZDOVars.s_content, 0);
                 nv.GetZDO().Set(ZDOVars.s_startTime, 0L);
@@ -360,7 +424,7 @@ namespace StoreAndCraft
                 FermenterBatch.ClearAfterDeposit(fermenter);
                 if (fermenter.m_tapEffects != null)
                     fermenter.m_tapEffects.Create(fermenter.transform.position, fermenter.transform.rotation);
-                ActivityLog.ToChest(StationOutput.StationLabel(fermenter), count, label);
+                ActivityLog.ToChest(StationOutput.StationLabel(fermenter), count, label, outChest);
                 return;
             }
 
@@ -447,6 +511,7 @@ namespace StoreAndCraft
         {
             if (__instance == null || !CookingAutoDrop.IsOn(__instance))
                 return;
+            StationChestFull.TickGrill(__instance);
             CookingAutoDrop.TryPopDone(__instance);
         }
     }
@@ -458,6 +523,7 @@ namespace StoreAndCraft
         {
             if (__instance == null || !CookingAutoDrop.IsOn(__instance))
                 return;
+            CookingAutoDrop.TickHiveNotice(__instance);
             CookingAutoDrop.TryExtractHoney(__instance);
         }
     }
@@ -469,6 +535,7 @@ namespace StoreAndCraft
         {
             if (__instance == null || !CookingAutoDrop.IsOn(__instance))
                 return;
+            CookingAutoDrop.TickSapNotice(__instance);
             CookingAutoDrop.TryExtractSap(__instance);
         }
     }
@@ -489,6 +556,7 @@ namespace StoreAndCraft
         {
             if (__instance == null || !CookingAutoDrop.IsOn(__instance))
                 return;
+            CookingAutoDrop.TickFermenterNotice(__instance);
             CookingAutoDrop.TryTapFermenter(__instance);
         }
     }
@@ -540,7 +608,7 @@ namespace StoreAndCraft
                 return true;
 
             string label;
-            if (!StationOutput.TryDepositNear(__instance, prefab, stack, out label))
+            if (!StationOutput.TryDepositNear(__instance, prefab, stack, out label, out Container outChest))
             {
                 _tagLink = StationLink.Get(__instance);
                 _tagPrefab = prefab;
@@ -556,7 +624,7 @@ namespace StoreAndCraft
             if (__instance.m_produceEffects != null)
                 __instance.m_produceEffects.Create(__instance.transform.position, __instance.transform.rotation);
 
-            ActivityLog.ToChest(StationOutput.StationLabel(__instance), stack, label);
+            ActivityLog.ToChest(StationOutput.StationLabel(__instance), stack, label, outChest);
             return false;
         }
 

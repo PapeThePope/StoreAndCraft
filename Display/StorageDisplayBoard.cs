@@ -8,11 +8,17 @@ namespace StoreAndCraft
     internal class StorageDisplayBoard : MonoBehaviour
     {
         public const string ZdoItemKey = "sac_item";
+        public static readonly int ZdoItemKeyHash = ZdoItemKey.GetStableHashCode();
         public const string ZdoRangeKey = "sac_display_range";
+        public static readonly int ZdoRangeKeyHash = ZdoRangeKey.GetStableHashCode();
         public const string ZdoScaleKey = "sac_ui_scale";
+        public static readonly int ZdoScaleKeyHash = ZdoScaleKey.GetStableHashCode();
         public const string ZdoLayoutKey = "sac_ui_layout";
+        public static readonly int ZdoLayoutKeyHash = ZdoLayoutKey.GetStableHashCode();
         public const string ZdoShowNameKey = "sac_show_name";
+        public static readonly int ZdoShowNameKeyHash = ZdoShowNameKey.GetStableHashCode();
         public const string ZdoShowAmountKey = "sac_show_amount";
+        public static readonly int ZdoShowAmountKeyHash = ZdoShowAmountKey.GetStableHashCode();
         public const int ScaleMin = -2;
         public const int ScaleMax = 4;
         public const int LayoutClassic = 0;
@@ -79,7 +85,6 @@ namespace StoreAndCraft
         private int _page;
         private int _pages = 1;
         private List<StorageDisplayBoard> _cluster;
-        private float _clusterUntil;
 
         private struct SlotUi
         {
@@ -104,6 +109,7 @@ namespace StoreAndCraft
         }
 
         public const string ZdoLayoutVariantKey = "sac_ui_layout_var";
+        public static readonly int ZdoLayoutVariantKeyHash = ZdoLayoutVariantKey.GetStableHashCode();
         private SectionUi[] _sections;
         private int _builtVariant = int.MinValue;
         private bool _buildingSections;
@@ -210,7 +216,7 @@ namespace StoreAndCraft
             ZDO zdo = nv != null && nv.IsValid() ? nv.GetZDO() : null;
             if (zdo == null)
                 return 0;
-            return Mathf.Clamp(zdo.GetInt(ZdoScaleKey, 0), ScaleMin, ScaleMax);
+            return Mathf.Clamp(zdo.GetInt(ZdoScaleKeyHash, 0), ScaleMin, ScaleMax);
         }
 
         public float ContentScaleMul()
@@ -228,9 +234,9 @@ namespace StoreAndCraft
             ZDO zdo = nv != null && nv.IsValid() ? nv.GetZDO() : null;
             if (zdo == null)
                 return;
-            if (zdo.GetInt(ZdoScaleKey, 0) == step)
+            if (zdo.GetInt(ZdoScaleKeyHash, 0) == step)
                 return;
-            zdo.Set(ZdoScaleKey, step);
+            zdo.Set(ZdoScaleKeyHash, step);
             // Rebuild + Paint same frame — do not Destroy the grid first (that blanked the board
             // until the throttled Paint ran 0.3–0.5s later).
             RebuildUiNow();
@@ -267,7 +273,7 @@ namespace StoreAndCraft
             ZDO zdo = nv != null && nv.IsValid() ? nv.GetZDO() : null;
             if (zdo == null)
                 return LayoutClassic;
-            return zdo.GetInt(ZdoLayoutKey, LayoutClassic) == LayoutCompact
+            return zdo.GetInt(ZdoLayoutKeyHash, LayoutClassic) == LayoutCompact
                 ? LayoutCompact
                 : LayoutClassic;
         }
@@ -311,9 +317,9 @@ namespace StoreAndCraft
             ZDO zdo = nv != null && nv.IsValid() ? nv.GetZDO() : null;
             if (zdo == null)
                 return;
-            if (zdo.GetInt(ZdoLayoutKey, LayoutClassic) == mode)
+            if (zdo.GetInt(ZdoLayoutKeyHash, LayoutClassic) == mode)
                 return;
-            zdo.Set(ZdoLayoutKey, mode);
+            zdo.Set(ZdoLayoutKeyHash, mode);
             // Same as scale: replace UI and Paint immediately so Classic↔Compact does not flash empty.
             RebuildUiNow();
         }
@@ -353,7 +359,7 @@ namespace StoreAndCraft
         {
             ZNetView nv = GetComponent<ZNetView>();
             ZDO zdo = nv != null && nv.IsValid() ? nv.GetZDO() : null;
-            return zdo != null ? Mathf.Max(0, zdo.GetInt(ZdoLayoutVariantKey, 0)) : 0;
+            return zdo != null ? Mathf.Max(0, zdo.GetInt(ZdoLayoutVariantKeyHash, 0)) : 0;
         }
 
         private void SetLayoutVariant(int variant)
@@ -362,8 +368,8 @@ namespace StoreAndCraft
             if (nv == null || !nv.IsValid() || !nv.IsOwner())
                 nv?.ClaimOwnership();
             ZDO zdo = nv != null && nv.IsValid() ? nv.GetZDO() : null;
-            if (zdo != null && zdo.GetInt(ZdoLayoutVariantKey, 0) != variant)
-                zdo.Set(ZdoLayoutVariantKey, variant);
+            if (zdo != null && zdo.GetInt(ZdoLayoutVariantKeyHash, 0) != variant)
+                zdo.Set(ZdoLayoutVariantKeyHash, variant);
         }
 
         /// <summary>v2 definition (layouts/sections) drives this board's face.</summary>
@@ -653,7 +659,7 @@ namespace StoreAndCraft
             ZDO zdo = nv != null && nv.IsValid() ? nv.GetZDO() : null;
             if (zdo == null)
                 return true;
-            return zdo.GetInt(ZdoShowNameKey, 1) != 0;
+            return zdo.GetInt(ZdoShowNameKeyHash, 1) != 0;
         }
 
         public bool ShowAmount()
@@ -662,7 +668,7 @@ namespace StoreAndCraft
             ZDO zdo = nv != null && nv.IsValid() ? nv.GetZDO() : null;
             if (zdo == null)
                 return true;
-            return zdo.GetInt(ZdoShowAmountKey, 1) != 0;
+            return zdo.GetInt(ZdoShowAmountKeyHash, 1) != 0;
         }
 
         public void SetShowName(bool on)
@@ -687,14 +693,14 @@ namespace StoreAndCraft
             int nameV = name ? 1 : 0;
             int amountV = amount ? 1 : 0;
             bool changed = false;
-            if (zdo.GetInt(ZdoShowNameKey, 1) != nameV)
+            if (zdo.GetInt(ZdoShowNameKeyHash, 1) != nameV)
             {
-                zdo.Set(ZdoShowNameKey, nameV);
+                zdo.Set(ZdoShowNameKeyHash, nameV);
                 changed = true;
             }
-            if (zdo.GetInt(ZdoShowAmountKey, 1) != amountV)
+            if (zdo.GetInt(ZdoShowAmountKeyHash, 1) != amountV)
             {
-                zdo.Set(ZdoShowAmountKey, amountV);
+                zdo.Set(ZdoShowAmountKeyHash, amountV);
                 changed = true;
             }
             if (!changed)
@@ -737,6 +743,10 @@ namespace StoreAndCraft
             _dirty = false;
             _nextPaint = Time.time + (_kind == DisplayKind.Large ? 0.5f : 0.3f);
             Paint();
+            // The paint above used the last chest count. After a new layout (more categories shown) parts stayed
+            // empty until a chest changed: count the chests once more and repaint shortly, the same as a chest
+            // change. Only on a rebuild (layout / scale / name options), not per frame.
+            MarkDirty();
         }
 
         public void InvalidateUi()
@@ -1071,7 +1081,13 @@ namespace StoreAndCraft
             EnsureVisualBaseFromName();
             if (!All.Contains(this))
                 All.Add(this);
-            TryBuild();
+            // A board loaded far from the camera (zone load, spawn) builds its face when the camera comes close
+            // (TickBoard), not now: loading a base used to build every board's UI in the first frames.
+            Camera cam = Utils.GetMainCamera();
+            float edge = FaceLodMeters + FaceLodHysteresis;
+            if (cam == null || (cam.transform.position - transform.position).sqrMagnitude <= edge * edge)
+                TryBuild();
+            _started = true;
         }
 
         private void OnDestroy()
@@ -1161,7 +1177,7 @@ namespace StoreAndCraft
             ZDO zdo = nv != null && nv.IsValid() ? nv.GetZDO() : null;
             if (zdo == null)
                 return "";
-            return zdo.GetString(ZdoItemKey, "") ?? "";
+            return zdo.GetString(ZdoItemKeyHash, "") ?? "";
         }
 
         /// <summary>Per-display override in meters (5–50). 0 = use config DisplayRange.</summary>
@@ -1171,16 +1187,16 @@ namespace StoreAndCraft
             ZDO zdo = nv != null && nv.IsValid() ? nv.GetZDO() : null;
             if (zdo == null)
                 return 0;
-            return Mathf.Clamp(zdo.GetInt(ZdoRangeKey, 0), 0, 50);
+            return Mathf.Clamp(zdo.GetInt(ZdoRangeKeyHash, 0), 0, 50);
         }
+
+        /// <summary>Range is only set per display (Alt+R); a display without its own value uses this.</summary>
+        private const float DefaultDisplayRange = 10f;
 
         public float EffectiveDisplayRange()
         {
             int custom = DisplayRangeMeters();
-            if (custom > 0)
-                return custom;
-            float cfg = Plugin.Settings != null ? Plugin.Settings.DisplayRange.Value : 10f;
-            return Mathf.Max(1f, cfg);
+            return custom > 0 ? custom : DefaultDisplayRange;
         }
 
         /// <summary>
@@ -1200,7 +1216,7 @@ namespace StoreAndCraft
             if (!nv.IsOwner())
                 nv.ClaimOwnership();
 
-            nv.GetZDO().Set(ZdoRangeKey, meters);
+            nv.GetZDO().Set(ZdoRangeKeyHash, meters);
             _dirty = true;
             _watchDirty = true;
             _nextScan = 0f;
@@ -1219,7 +1235,7 @@ namespace StoreAndCraft
             ZDO zdo = nv.GetZDO();
             if (item?.m_shared == null)
             {
-                zdo.Set(ZdoItemKey, "");
+                zdo.Set(ZdoItemKeyHash, "");
             }
             else
             {
@@ -1230,12 +1246,12 @@ namespace StoreAndCraft
                 // Ensure drop prefab is known for later SampleFromToken / Matches.
                 if (item.m_dropPrefab == null)
                     ItemIds.PrefabName(item);
-                zdo.Set(ZdoItemKey, token ?? "");
+                zdo.Set(ZdoItemKeyHash, token ?? "");
             }
 
             // Small boards do not use category filters.
-            zdo.Set(DisplayFilters.ZdoKeyMulti, "");
-            zdo.Set(DisplayFilters.ZdoKey, 0);
+            zdo.Set(DisplayFilters.ZdoKeyMultiHash, "");
+            zdo.Set(DisplayFilters.ZdoKeyHash, 0);
             _dirty = true;
             _cluster = null;
             InvalidateClusters();
@@ -1319,11 +1335,23 @@ namespace StoreAndCraft
             return token;
         }
 
+        // Filters / items are read from the board ZDO several times per repaint: parsed once per ZDO change.
+        // Callers get their own copy (some add to it).
+        private uint _filterRev = uint.MaxValue;
+        private List<int> _filterIds;
+        private uint _tokenRev = uint.MaxValue;
+        private List<string> _itemTokens;
+
         public List<int> FilterIds()
         {
-            ZNetView nv = GetComponent<ZNetView>();
-            ZDO zdo = nv != null && nv.IsValid() ? nv.GetZDO() : null;
-            return DisplayFilters.ReadIds(zdo);
+            uint rev = CurrentRevision();
+            if (_filterIds == null || rev != _filterRev || rev == uint.MaxValue - 1)
+            {
+                ZDO zdo = _view != null && _view.IsValid() ? _view.GetZDO() : null;
+                _filterIds = DisplayFilters.ReadIds(zdo);
+                _filterRev = rev;
+            }
+            return new List<int>(_filterIds);
         }
 
         public int FilterId()
@@ -1334,9 +1362,14 @@ namespace StoreAndCraft
 
         public List<string> ItemTokens()
         {
-            ZNetView nv = GetComponent<ZNetView>();
-            ZDO zdo = nv != null && nv.IsValid() ? nv.GetZDO() : null;
-            return DisplayFilters.ReadItemTokens(zdo);
+            uint rev = CurrentRevision();
+            if (_itemTokens == null || rev != _tokenRev || rev == uint.MaxValue - 1)
+            {
+                ZDO zdo = _view != null && _view.IsValid() ? _view.GetZDO() : null;
+                _itemTokens = DisplayFilters.ReadItemTokens(zdo);
+                _tokenRev = rev;
+            }
+            return new List<string>(_itemTokens);
         }
 
         /// <summary>Carved Small board: [E] selection limited to 1 category or 4 items, no hotbar.</summary>
@@ -1357,11 +1390,11 @@ namespace StoreAndCraft
                 nv.ClaimOwnership();
 
             ZDO zdo = nv.GetZDO();
-            zdo.Set(DisplayFilters.ZdoKeyMulti, DisplayFilters.EncodeIds(ids));
-            zdo.Set(DisplayFilters.ZdoKeyItems, DisplayFilters.EncodeItemTokens(itemTokens));
+            zdo.Set(DisplayFilters.ZdoKeyMultiHash, DisplayFilters.EncodeIds(ids));
+            zdo.Set(DisplayFilters.ZdoKeyItemsHash, DisplayFilters.EncodeItemTokens(itemTokens));
             // Carved Small has no hotbar assign any more — drop an old hotbar item on first [E] edit.
             if (IsSmallOwnLayouts)
-                zdo.Set(ZdoItemKey, "");
+                zdo.Set(ZdoItemKeyHash, "");
             int legacy = 0;
             if (ids != null)
             {
@@ -1374,7 +1407,7 @@ namespace StoreAndCraft
                     }
                 }
             }
-            zdo.Set(DisplayFilters.ZdoKey, legacy);
+            zdo.Set(DisplayFilters.ZdoKeyHash, legacy);
             _dirty = true;
             _watchDirty = true;
             _nextScan = 0f;
@@ -1552,10 +1585,314 @@ namespace StoreAndCraft
             return true;
         }
 
-        private void Update()
+        private static int _heavyFrame = -1;
+        private static StorageDisplayBoard _heavyBoard;
+
+        /// <summary>
+        /// One board at a time does its heavy work (build, chest discovery, paint) in a frame, so many boards that
+        /// all need it at once (arriving at a base) spread over several frames instead of one long frame.
+        /// The same board may do several steps in its frame (rebuild + paint, no empty flash in between).
+        /// </summary>
+        private bool ClaimFrame()
         {
+            int f = Time.frameCount;
+            if (_heavyFrame == f && _heavyBoard != null && _heavyBoard != this)
+                return false;
+            _heavyFrame = f;
+            _heavyBoard = this;
+            return true;
+        }
+
+        /// <summary>
+        /// All boards from one place (Plugin.Update), like Valheim's MonoUpdaters, instead of one Unity Update call per
+        /// board: same work, same order of events, without the per-object engine call. Only active, started boards
+        /// tick (what Unity did for Update).
+        /// </summary>
+        internal static void TickAll()
+        {
+            if (All.Count == 0)
+                return;
+            // One camera lookup per frame for every board's LOD / visibility check.
+            Camera cam = Utils.GetMainCamera();
+            _hasCam = cam != null;
+            if (_hasCam)
+                _camPos = cam.transform.position;
+            TickScratch.Clear();
+            TickScratch.AddRange(All); // a tick may remove boards from All
+            float now = Time.time;
+            for (int i = 0; i < TickScratch.Count; i++)
+            {
+                StorageDisplayBoard board = TickScratch[i];
+                if (board == null || !board._started || !board.isActiveAndEnabled)
+                    continue;
+                // A board beyond the face LOD shows nothing and does no work: it only has to notice the camera
+                // coming closer, which a look every FarTickSeconds does (the face appears within that time).
+                if (board._faceHidden && now < board._nextFarTick)
+                    continue;
+                board._nextFarTick = now + FarTickSeconds;
+                board.TickBoard();
+            }
+            TickScratch.Clear();
+        }
+
+        private static readonly List<StorageDisplayBoard> TickScratch = new List<StorageDisplayBoard>(64);
+        private const float FarTickSeconds = 0.25f;
+        private float _nextFarTick;
+        private static bool _hasCam;
+        private static Vector3 _camPos;
+        private bool _started;
+
+        private void TickBoard()
+        {
+            if (_bornAt < 0f)
+                _bornAt = Time.time;
             // Any chassis mismatch must RebuildUiNow — nulling _slots + throttled Paint
             // flashes an empty board for 0.3–0.5s (Scale / Layout feels like flicker).
+            // The checks read the board settings from its ZDO: only run them when something they read can have changed.
+            bool needsRebuild = false;
+            if (LayoutInputsChanged())
+            {
+                needsRebuild = LayoutOutdated();
+                if (!needsRebuild)
+                    RememberLayoutInputs();
+            }
+
+            // Beyond the face LOD nothing is drawn: do not build (or rebuild) the face until the camera comes closer.
+            // After a spawn / zone load this skips building every far board (10-15 ms each).
+            if ((needsRebuild || _slots == null) && BeyondFaceLod())
+            {
+                _faceHidden = true; // ticked FarTickSeconds apart until it is close enough to build
+                return;
+            }
+
+            if (needsRebuild)
+            {
+                if (!ClaimFrame())
+                    return;
+                RebuildUiNow();
+                if (_slots == null)
+                    return;
+            }
+            else if (_slots == null)
+            {
+                if (!ClaimFrame())
+                    return;
+                TryBuild();
+                if (_slots == null)
+                    return;
+            }
+
+            if (_slots == null)
+                return;
+
+            UpdateFaceLod();
+
+            // Cheap: keep vanilla sign text off. Avoid ApplyTitle/FilterIds every frame.
+            SilenceSignText();
+
+            // Chest discovery only on demand (enable / selection / range) or rare pickup of new chests.
+            // Inventory count changes use m_onChanged → MarkDirty → Paint, not a full rescan.
+            if (_watchDirty || _watched.Count == 0)
+            {
+                if (Time.time >= _nextScan)
+                {
+                    if (!ClaimFrame())
+                        return;
+                    // Fast after a selection / range change; a board with no chests in range
+                    // only needs a slow retry (it rescanned every 0.35 s forever before).
+                    _nextScan = Time.time + (_watchDirty ? 0.35f : 3f);
+                    Resubscribe();
+                    _watchDirty = false;
+                }
+            }
+            else if (Time.time >= _nextScan)
+            {
+                if (!ClaimFrame())
+                    return;
+                // Rare discovery pass for newly placed / newly loaded chests (no ZDO reload when list unchanged).
+                _nextScan = Time.time + (Time.time - _bornAt < YoungBoardSeconds ? 5f : 30f);
+                Resubscribe();
+            }
+
+            // Boards nobody can see (out of the camera view, or farther than SeenNeverBeyond) stay dirty and do not
+            // scan or repaint; as soon as one comes into view it repaints. The overdue clock only runs while seen.
+            if (_dirty && !IsSeen())
+            {
+                _dirtySince = -1f;
+                return;
+            }
+
+            if (_dirty)
+                ApplyTitle();
+
+            if (!_dirty)
+                _dirtySince = -1f;
+            else if (_dirtySince < 0f)
+                _dirtySince = Time.time;
+            if (!_dirty || Time.time < _nextPaint)
+                return;
+            // Safety net: never leave a board blank because of the frame sharing / sliced scan.
+            bool overdue = _dirtySince >= 0f && Time.time - _dirtySince > OverdueSeconds;
+            if (!ClaimFrame() && !overdue)
+                return;
+            // The chest scan is spread over several frames; the board stays dirty until it is ready.
+            if (SliceRanking && !overdue && !PrepareRank())
+                return;
+
+            float basePause = _kind == DisplayKind.Large ? 0.5f : 0.3f;
+            _nextPaint = Time.time + basePause;
+            _dirty = false;
+            long t0 = System.Diagnostics.Stopwatch.GetTimestamp();
+            Paint();
+            // The longer a repaint took, the longer until the next one (a busy base keeps boards dirty all the time).
+            float took = (float)((System.Diagnostics.Stopwatch.GetTimestamp() - t0) / (double)System.Diagnostics.Stopwatch.Frequency);
+            took += _scanSeconds;
+            _scanSeconds = 0f;
+            _nextPaint = Time.time + Mathf.Max(basePause, took * 60f);
+            if (_refreshAfterPaint)
+            {
+                _refreshAfterPaint = false;
+                _dirty = true;
+            }
+        }
+
+        // ---- rebuild check (Update): same conditions as always, evaluated only when an input changed ----
+
+        private uint _inRev = uint.MaxValue;
+        private int _inGeneration = -1;
+        private object _inSlots;
+        private int _inSlotCount = -1;
+        private object _inSections;
+        private object _inHeaders;
+        private object _inBandLabels;
+        private int _inRows = -1;
+        private int _inColumns = -1;
+        private float _inRecheckAt;
+
+        /// <summary>
+        /// True when something LayoutOutdated reads may differ from the last check that said "up to date": the board
+        /// ZDO changed (scale / layout / variant / name / amount, also when another player set it), the layout
+        /// definitions were reloaded, the UI was rebuilt, or one second passed (safety for anything else).
+        /// </summary>
+        private bool LayoutInputsChanged()
+        {
+            uint rev = CurrentRevision();
+            return rev != _inRev || DisplayLayouts.Generation != _inGeneration
+                || !ReferenceEquals(_slots, _inSlots) || _slotCount != _inSlotCount
+                || !ReferenceEquals(_sections, _inSections) || !ReferenceEquals(_headers, _inHeaders)
+                || !ReferenceEquals(_bandLabels, _inBandLabels) || _rows != _inRows || _columns != _inColumns
+                || Time.time >= _inRecheckAt;
+        }
+
+        private void RememberLayoutInputs()
+        {
+            _inRev = CurrentRevision();
+            _inGeneration = DisplayLayouts.Generation;
+            _inSlots = _slots;
+            _inSlotCount = _slotCount;
+            _inSections = _sections;
+            _inHeaders = _headers;
+            _inBandLabels = _bandLabels;
+            _inRows = _rows;
+            _inColumns = _columns;
+            _inRecheckAt = Time.time + 1f;
+        }
+
+        private ZNetView _view;
+
+        // ---- visibility: only boards someone can see scan their chests and repaint ----
+
+        /// <summary>Always updated this close to the camera (turning around next to it never shows old numbers).</summary>
+        private const float SeenAlwaysWithin = 8f;
+        /// <summary>Never updated where the face is not drawn (see FaceLodMeters); it repaints once you come closer.</summary>
+        private const float SeenNeverBeyond = FaceLodMeters + FaceLodHysteresis;
+
+        // ---- LOD: the face (icons, numbers, titles) is only drawn within FaceLodMeters of the camera ----
+
+        private const float FaceLodMeters = 20f;
+        /// <summary>Hidden beyond 21 m, shown again within 19 m: no flicker when standing right at the edge.</summary>
+        private const float FaceLodHysteresis = 1f;
+        private Canvas[] _faceCanvases;
+        private object _faceSlots;
+        private bool _faceHidden;
+
+        private bool BeyondFaceLod()
+        {
+            if (!_hasCam)
+                return false;
+            float edge = FaceLodMeters + FaceLodHysteresis;
+            return (_camPos - transform.position).sqrMagnitude > edge * edge;
+        }
+
+        /// <summary>
+        /// Switches the board's canvases off when the camera is far away (Unity then neither draws nor rebuilds them;
+        /// the board model stays). Canvases are looked up again after the face was rebuilt.
+        /// </summary>
+        private void UpdateFaceLod()
+        {
+            float sq = _hasCam ? (_camPos - transform.position).sqrMagnitude : 0f;
+            float edge = _faceHidden ? FaceLodMeters - FaceLodHysteresis : FaceLodMeters + FaceLodHysteresis;
+            bool hide = sq > edge * edge;
+            bool rebuilt = _faceCanvases == null || !ReferenceEquals(_slots, _faceSlots);
+            if (hide == _faceHidden && !rebuilt)
+                return;
+            if (rebuilt)
+            {
+                _faceCanvases = GetComponentsInChildren<Canvas>(true);
+                _faceSlots = _slots;
+            }
+            _faceHidden = hide;
+            for (int i = 0; i < _faceCanvases.Length; i++)
+            {
+                Canvas c = _faceCanvases[i];
+                if (c != null && c.enabled == hide)
+                    c.enabled = !hide;
+            }
+        }
+        private Renderer[] _renderers;
+        private float _renderersAt = -100f;
+
+        /// <summary>
+        /// In view of the main camera: Unity's own culling result (Renderer.isVisible) of the board model. It is view
+        /// culling, not occlusion (a board behind a wall inside the view counts as seen). No camera / no model: seen.
+        /// </summary>
+        private bool IsSeen()
+        {
+            if (!_hasCam)
+                return true;
+            float sq = (_camPos - transform.position).sqrMagnitude;
+            if (sq <= SeenAlwaysWithin * SeenAlwaysWithin)
+                return true;
+            if (sq > SeenNeverBeyond * SeenNeverBeyond)
+                return false;
+            // The model can be swapped (Classic / Compact): look the renderers up again now and then.
+            if (_renderers == null || Time.time - _renderersAt > 5f)
+            {
+                _renderers = GetComponentsInChildren<Renderer>(false);
+                _renderersAt = Time.time;
+            }
+            if (_renderers.Length == 0)
+                return true;
+            for (int i = 0; i < _renderers.Length; i++)
+            {
+                Renderer r = _renderers[i];
+                if (r != null && r.enabled && r.isVisible)
+                    return true;
+            }
+            return false;
+        }
+
+        private uint CurrentRevision()
+        {
+            if (_view == null)
+                _view = GetComponent<ZNetView>();
+            ZDO zdo = _view != null && _view.IsValid() ? _view.GetZDO() : null;
+            return zdo != null ? zdo.DataRevision : uint.MaxValue - 1;
+        }
+
+        /// <summary>The chassis no longer matches the settings: the UI has to be rebuilt.</summary>
+        private bool LayoutOutdated()
+        {
             bool needsRebuild = false;
 
             // Force UI rebuild when switching to small layout tweaks / slot count changes.
@@ -1611,55 +1948,7 @@ namespace StoreAndCraft
                 && (_slots[0].Name == null
                     || (_slots[0].Amount != null && _slots[0].Amount.fontSize < 1f)))
                 needsRebuild = true;
-
-            if (needsRebuild)
-            {
-                RebuildUiNow();
-                if (_slots == null)
-                    return;
-            }
-            else if (_slots == null)
-            {
-                TryBuild();
-                if (_slots == null)
-                    return;
-            }
-
-            if (_slots == null)
-                return;
-
-            // Cheap: keep vanilla sign text off. Avoid ApplyTitle/FilterIds every frame.
-            SilenceSignText();
-
-            // Chest discovery only on demand (enable / selection / range) or rare pickup of new chests.
-            // Inventory count changes use m_onChanged → MarkDirty → Paint, not a full rescan.
-            if (_watchDirty || _watched.Count == 0)
-            {
-                if (Time.time >= _nextScan)
-                {
-                    // Fast after a selection / range change; a board with no chests in range
-                    // only needs a slow retry (it rescanned every 0.35 s forever before).
-                    _nextScan = Time.time + (_watchDirty ? 0.35f : 3f);
-                    Resubscribe();
-                    _watchDirty = false;
-                }
-            }
-            else if (Time.time >= _nextScan)
-            {
-                // Very rare discovery pass for newly placed chests (no ZDO reload when list unchanged).
-                _nextScan = Time.time + 30f;
-                Resubscribe();
-            }
-
-            if (_dirty)
-                ApplyTitle();
-
-            if (!_dirty || Time.time < _nextPaint)
-                return;
-
-            _nextPaint = Time.time + (_kind == DisplayKind.Large ? 0.5f : 0.3f);
-            _dirty = false;
-            Paint();
+            return needsRebuild;
         }
 
         private void TryBuild()
@@ -2667,6 +2956,7 @@ namespace StoreAndCraft
 
         private void Resubscribe()
         {
+            _rankVersion++; // the watched chests may change
             NearbyIndex.Tick();
             float range = EffectiveDisplayRange();
             Vector3 origin = transform.position;
@@ -2754,97 +3044,39 @@ namespace StoreAndCraft
             _watchIds.Clear();
         }
 
+        /// <summary>
+        /// A chest was saved (Container.Save). SAC's own partial takes / deposits save without Inventory.Changed, so
+        /// m_onChanged never told the boards: repaint every board that watches this chest.
+        /// </summary>
+        internal static void OnChestSaved(Container chest)
+        {
+            if (chest == null || All.Count == 0)
+                return;
+            int id = chest.GetInstanceID();
+            for (int i = 0; i < All.Count; i++)
+            {
+                StorageDisplayBoard board = All[i];
+                if (board != null && board._watchIds.BinarySearch(id) >= 0)
+                    board.MarkDirty();
+            }
+        }
+
         private void MarkDirty()
         {
             _dirty = true;
+            _rankVersion++;
         }
 
+        /// <summary>
+        /// The boards whose chests and items this board shows: only itself. Boards with the same selection no longer
+        /// join into page sets (there are enough display sizes now), every board shows all of its items. Kept as a list
+        /// so the paint / ranking code stays the same (one page, its own chests, its own scan).
+        /// </summary>
         private List<StorageDisplayBoard> Cluster()
         {
-            if (_cluster != null && Time.time < _clusterUntil)
-                return _cluster;
-
-            var cluster = new List<StorageDisplayBoard>();
-            var queue = new Queue<StorageDisplayBoard>();
-            var seen = new HashSet<int>();
-            float link = NearbyIndex.AccessRange();
-            List<int> myFilters = FilterIds();
-            List<string> myItems = ItemTokens();
-            string myItem = _kind == DisplayKind.Small ? ItemToken() : "";
-            float myRange = EffectiveDisplayRange();
-
-            queue.Enqueue(this);
-            seen.Add(GetInstanceID());
-
-            while (queue.Count > 0)
-            {
-                StorageDisplayBoard cur = queue.Dequeue();
-                if (cur == null)
-                    continue;
-                cluster.Add(cur);
-                Vector3 pos = cur.transform.position;
-                for (int i = All.Count - 1; i >= 0; i--)
-                {
-                    StorageDisplayBoard other = All[i];
-                    if (other == null)
-                    {
-                        All.RemoveAt(i);
-                        continue;
-                    }
-                    if (!seen.Add(other.GetInstanceID()))
-                        continue;
-                    if (other._kind != _kind)
-                        continue;
-                    if (Mathf.Abs(other.EffectiveDisplayRange() - myRange) > 0.1f)
-                        continue;
-                    if (_kind == DisplayKind.Small)
-                    {
-                        if (string.IsNullOrEmpty(myItem)
-                            || !string.Equals(other.ItemToken(), myItem, System.StringComparison.Ordinal))
-                            continue;
-                    }
-                    else if (!DisplayFilters.SameIds(other.FilterIds(), myFilters)
-                        || !DisplayFilters.SameItemTokens(other.ItemTokens(), myItems))
-                    {
-                        continue;
-                    }
-                    else if (myFilters.Count == 0 && myItems.Count == 0)
-                    {
-                        continue;
-                    }
-                    if (Vector3.Distance(pos, other.transform.position) <= link)
-                        queue.Enqueue(other);
-                }
-            }
-
-            cluster.Sort(CompareBoards);
-            _cluster = cluster;
-            _clusterUntil = Time.time + 1.5f;
-            return cluster;
-        }
-
-        private static int CompareBoards(StorageDisplayBoard a, StorageDisplayBoard b)
-        {
-            ZDOID ia = ZdoId(a);
-            ZDOID ib = ZdoId(b);
-            int byId = ia.ID.CompareTo(ib.ID);
-            if (byId != 0)
-                return byId;
-            int byUser = ia.UserID.CompareTo(ib.UserID);
-            if (byUser != 0)
-                return byUser;
-            return a.GetInstanceID().CompareTo(b.GetInstanceID());
-        }
-
-        private static ZDOID ZdoId(StorageDisplayBoard board)
-        {
-            if (board == null)
-                return ZDOID.None;
-            ZNetView nv = board.GetComponent<ZNetView>();
-            if (nv == null || !nv.IsValid())
-                return ZDOID.None;
-            ZDO zdo = nv.GetZDO();
-            return zdo != null ? zdo.m_uid : ZDOID.None;
+            if (_cluster == null)
+                _cluster = new List<StorageDisplayBoard>(1) { this };
+            return _cluster;
         }
 
         private void RefreshClusterPages()
@@ -3002,6 +3234,7 @@ namespace StoreAndCraft
                     _slots[i].Shared = sample.m_shared != null ? sample.m_shared.m_name : null;
                     SetAmount(i, FormatCount(total));
                     SetItemName(i, ItemLabel(sample.m_shared != null ? sample.m_shared.m_name : token));
+                    MarkBelowMinimum(i, _slots[i].Shared, total); // SAC-MIN
                 }
                 else
                 {
@@ -3599,65 +3832,337 @@ namespace StoreAndCraft
             public int CategoryOrder;
         }
 
-        private List<RankedItem> RankItems(
+        // ---- ranking (what the board shows): chest scan in time slices + shared per cluster ----
+        //
+        // The chest scan (all stacks of all watched chests) is the expensive part of a repaint (6-20 ms). It runs as a
+        // job that gets about RankBudgetMs per frame, so a repaint no longer lands in one long frame. All boards of a
+        // cluster share one scan per change. _rankVersion goes up whenever a watched chest changes (or the watched
+        // chests change). SliceRanking = false goes back to one scan in one go (the old behavior).
+        private const bool SliceRanking = true;
+        private const float RankBudgetMs = 2f;
+
+        private static int _rankVersion;
+        private bool _refreshAfterPaint;
+        private float _dirtySince = -1f;
+        private float _bornAt = -1f;
+        /// <summary>Just after a board appears (join, walking up) chests keep loading in: look for new ones more often.</summary>
+        private const float YoungBoardSeconds = 90f;
+        /// <summary>A board that waited this long for its repaint (other boards busy, a scan that does not finish) paints at once.</summary>
+        private const float OverdueSeconds = 5f;
+        private float _scanSeconds; // time of the scan that just finished (it counts for the pause before the next repaint)
+
+        private sealed class AggResult
+        {
+            public readonly Dictionary<string, int> Totals = new Dictionary<string, int>();
+            public readonly Dictionary<string, ItemDrop.ItemData> Sample = new Dictionary<string, ItemDrop.ItemData>();
+            public int Version;
+            public int Frame;
+            // Sorted lists built from this scan, once per scan (every board of the cluster uses them).
+            public List<RankedItem> RankedByCategory;
+            public List<RankedItem> RankedByCount;
+        }
+
+        private sealed class AggJob
+        {
+            public readonly AggResult Result = new AggResult();
+            private readonly IEnumerator<bool> _steps;
+            public double ElapsedSeconds;
+
+            public AggJob(List<Container> chests, List<int> filters, List<string> itemTokens)
+            {
+                Result.Version = _rankVersion;
+                _steps = AggregateSteps(chests, filters, itemTokens, Result);
+            }
+
+            /// <summary>Runs for about the budget; true when the scan is finished.</summary>
+            public bool Step(float budgetMs)
+            {
+                long start = System.Diagnostics.Stopwatch.GetTimestamp();
+                long end = start + (long)(budgetMs / 1000.0 * System.Diagnostics.Stopwatch.Frequency);
+                bool done = false;
+                do
+                {
+                    if (!_steps.MoveNext())
+                    {
+                        done = true;
+                        break;
+                    }
+                }
+                while (System.Diagnostics.Stopwatch.GetTimestamp() < end);
+                ElapsedSeconds += (System.Diagnostics.Stopwatch.GetTimestamp() - start) / (double)System.Diagnostics.Stopwatch.Frequency;
+                return done;
+            }
+        }
+
+        private static readonly Dictionary<string, AggResult> AggCache = new Dictionary<string, AggResult>();
+        private static readonly Dictionary<string, AggJob> AggJobs = new Dictionary<string, AggJob>();
+
+        private static string AggKey(
             List<StorageDisplayBoard> cluster,
             List<int> filters,
-            List<string> itemTokens,
-            bool groupByCategory = false)
+            List<string> itemTokens)
         {
-            var totals = new Dictionary<string, int>();
-            var sample = new Dictionary<string, ItemDrop.ItemData>();
-            var seenChest = new HashSet<int>();
-            bool hasFilters = filters != null && filters.Count > 0;
-            bool hasItems = itemTokens != null && itemTokens.Count > 0;
-            if (!hasFilters && !hasItems)
-                return new List<RankedItem>();
+            if (cluster == null)
+                return null;
+            var ids = new List<int>(cluster.Count);
+            for (int i = 0; i < cluster.Count; i++)
+            {
+                if (cluster[i] != null)
+                    ids.Add(cluster[i].GetInstanceID());
+            }
+            ids.Sort();
+            var sb = new System.Text.StringBuilder(64);
+            for (int i = 0; i < ids.Count; i++)
+                sb.Append(ids[i]).Append(',');
+            sb.Append('|');
+            if (filters != null)
+            {
+                for (int i = 0; i < filters.Count; i++)
+                    sb.Append(filters[i]).Append(',');
+            }
+            sb.Append('|');
+            if (itemTokens != null)
+            {
+                for (int i = 0; i < itemTokens.Count; i++)
+                    sb.Append(itemTokens[i]).Append(';');
+            }
+            return sb.ToString();
+        }
 
+        /// <summary>The chests of all boards in the cluster, once each (a copy: the boards' lists change over time).</summary>
+        private static List<Container> SnapshotChests(List<StorageDisplayBoard> cluster)
+        {
+            var chests = new List<Container>();
+            var seen = new HashSet<int>();
+            if (cluster == null)
+                return chests;
             foreach (StorageDisplayBoard board in cluster)
             {
                 if (board == null)
                     continue;
                 foreach (Container container in board._watched)
                 {
-                    if (container == null || !seenChest.Add(container.GetInstanceID()))
-                        continue;
-            // Prefer already-loaded inventories; only ZDO-load when the bag is missing.
-            // Never Load over a populated bag, and never Load when the ZDO has no payload
-            // (that empty Load + Save race wiped iron chests next to Storage Displays).
-            Inventory inv = container.GetInventory();
-            if (inv == null)
-            {
-                NearbyIndex.EnsureInventory(container);
-                inv = container.GetInventory();
+                    if (container != null && seen.Add(container.GetInstanceID()))
+                        chests.Add(container);
+                }
             }
-            else if (inv.NrOfItems() <= 0 && ContainerFilter.ZdoHasItemPayload(Refs.View(container)?.GetZDO()))
+            return chests;
+        }
+
+        /// <summary>Filter answers of one selection (filters + items), per item type.</summary>
+        private sealed class Verdicts
+        {
+            public float Created;
+            public readonly Dictionary<ItemDrop.ItemData.SharedData, bool> Match = new Dictionary<ItemDrop.ItemData.SharedData, bool>();
+            public readonly Dictionary<ItemDrop.ItemData.SharedData, GameObject> Prefab = new Dictionary<ItemDrop.ItemData.SharedData, GameObject>();
+        }
+
+        /// <summary>Kept this long (s). The filter lists are fixed tables, the answer depends on the item type only.</summary>
+        private const float VerdictSeconds = 300f;
+        private static readonly Dictionary<string, Verdicts> VerdictCache = new Dictionary<string, Verdicts>();
+
+        private static Verdicts VerdictsFor(List<int> filters, List<string> itemTokens)
+        {
+            var sb = new System.Text.StringBuilder(64);
+            if (filters != null)
             {
-                NearbyIndex.EnsureInventory(container);
-                inv = container.GetInventory();
+                for (int i = 0; i < filters.Count; i++)
+                    sb.Append(filters[i]).Append(',');
             }
-            if (inv == null || inv.NrOfItems() <= 0)
-                continue;
-                    foreach (ItemDrop.ItemData item in inv.GetAllItems())
+            sb.Append('|');
+            if (itemTokens != null)
+            {
+                for (int i = 0; i < itemTokens.Count; i++)
+                    sb.Append(itemTokens[i]).Append(';');
+            }
+            string key = sb.ToString();
+
+            Verdicts v;
+            if (VerdictCache.TryGetValue(key, out v) && Time.unscaledTime - v.Created < VerdictSeconds)
+                return v;
+            if (VerdictCache.Count > 64)
+                VerdictCache.Clear();
+            v = new Verdicts { Created = Time.unscaledTime };
+            VerdictCache[key] = v;
+            return v;
+        }
+
+        /// <summary>Walks the chests, one chest per step: adds up the matching stacks per item type.</summary>
+        private static IEnumerator<bool> AggregateSteps(
+            List<Container> chests,
+            List<int> filters,
+            List<string> itemTokens,
+            AggResult result)
+        {
+            // Same item type (shared data + prefab) = same filter answer: ask once per type, not once per stack.
+            // The answers are kept per selection across scans (VerdictsFor), not rebuilt for every scan.
+            Verdicts verdicts = VerdictsFor(filters, itemTokens);
+            Dictionary<ItemDrop.ItemData.SharedData, bool> verdict = verdicts.Match;
+            Dictionary<ItemDrop.ItemData.SharedData, GameObject> verdictPrefab = verdicts.Prefab;
+
+            for (int c = 0; c < chests.Count; c++)
+            {
+                Container container = chests[c];
+                if (container == null)
+                    continue;
+
+                // Prefer already-loaded inventories; only ZDO-load when the bag is missing.
+                // Never Load over a populated bag, and never Load when the ZDO has no payload
+                // (that empty Load + Save race wiped iron chests next to Storage Displays).
+                Inventory inv = container.GetInventory();
+                if (inv == null)
+                {
+                    NearbyIndex.EnsureInventory(container);
+                    inv = container.GetInventory();
+                }
+                else if (inv.NrOfItems() <= 0 && ContainerFilter.ZdoHasItemPayload(Refs.View(container)?.GetZDO()))
+                {
+                    NearbyIndex.EnsureInventory(container);
+                    inv = container.GetInventory();
+                }
+                if (inv == null || inv.NrOfItems() <= 0)
+                    continue;
+
+                // Per chest the stacks are already added up per item type (ChestSummary, rebuilt when the chest changes).
+                List<ChestSummary.Group> groups = ChestSummary.Groups(inv);
+                if (groups == null)
+                    continue;
+                for (int g = 0; g < groups.Count; g++)
+                {
+                    ChestSummary.Group group = groups[g];
+                    ItemDrop.ItemData item = group.Sample;
+                    bool match;
+                    GameObject seenPrefab;
+                    if (verdict.TryGetValue(group.Shared, out match)
+                        && verdictPrefab.TryGetValue(group.Shared, out seenPrefab)
+                        && seenPrefab == group.Prefab)
                     {
-                        if (item?.m_shared == null || item.m_stack <= 0)
-                            continue;
-                        if (!DisplayFilters.MatchesSelection(item, filters, itemTokens))
-                            continue;
-                        string key = item.m_shared.m_name;
-                        int n;
-                        totals.TryGetValue(key, out n);
-                        totals[key] = n + item.m_stack;
-                        if (!sample.ContainsKey(key))
-                            sample[key] = item;
+                        // known type
                     }
+                    else
+                    {
+                        match = DisplayFilters.MatchesSelection(item, filters, itemTokens);
+                        verdict[group.Shared] = match;
+                        verdictPrefab[group.Shared] = group.Prefab;
+                    }
+                    if (!match)
+                        continue;
+                    string key = group.Shared.m_name;
+                    int n;
+                    result.Totals.TryGetValue(key, out n);
+                    result.Totals[key] = n + group.Count;
+                    if (!result.Sample.ContainsKey(key))
+                        result.Sample[key] = item;
+                }
+
+                yield return true;
+            }
+        }
+
+        /// <summary>
+        /// Before a repaint: moves the chest scan along (about RankBudgetMs). False = not finished, try again next
+        /// frame (the board stays dirty). True = the scan is ready, the paint can use it right now.
+        /// </summary>
+        private bool PrepareRank()
+        {
+            // Same selection the paint will ask for (see Paint).
+            if (_kind == DisplayKind.Small && _sections == null)
+                return true;
+            List<int> filters = FilterIds();
+            List<string> itemTokens = ItemTokens();
+            if (_kind == DisplayKind.Small)
+            {
+                string hotbar = ItemToken();
+                if (!string.IsNullOrEmpty(hotbar) && !itemTokens.Contains(hotbar))
+                    itemTokens.Add(hotbar);
+            }
+            if (filters.Count == 0 && itemTokens.Count == 0)
+                return true;
+
+            List<StorageDisplayBoard> cluster = Cluster();
+            string key = AggKey(cluster, filters, itemTokens);
+            if (key == null)
+                return true;
+
+            AggResult cached;
+            if (AggCache.TryGetValue(key, out cached) && cached.Version == _rankVersion)
+                return true;
+
+            AggJob job;
+            if (!AggJobs.TryGetValue(key, out job))
+            {
+                if (AggJobs.Count > 8)
+                    AggJobs.Clear(); // jobs of selections nobody asks for any more
+                job = new AggJob(SnapshotChests(cluster), filters, itemTokens);
+                AggJobs[key] = job;
+            }
+
+            if (!job.Step(RankBudgetMs))
+                return false;
+
+            AggJobs.Remove(key);
+            _scanSeconds = (float)job.ElapsedSeconds;
+            job.Result.Frame = Time.frameCount;
+            // One cached scan per board (boards no longer share one per page set): room for big bases.
+            if (AggCache.Count > 256)
+                AggCache.Clear();
+            AggCache[key] = job.Result;
+            // A chest changed while the scan was running: paint with it now, and again right after.
+            if (job.Result.Version != _rankVersion)
+                _refreshAfterPaint = true;
+            return true;
+        }
+
+        private List<RankedItem> RankItems(
+            List<StorageDisplayBoard> cluster,
+            List<int> filters,
+            List<string> itemTokens,
+            bool groupByCategory = false)
+        {
+            bool hasFilters = filters != null && filters.Count > 0;
+            bool hasItems = itemTokens != null && itemTokens.Count > 0;
+            if (!hasFilters && !hasItems)
+                return new List<RankedItem>();
+
+            string key = AggKey(cluster, filters, itemTokens);
+            AggResult agg;
+            // Valid: nothing changed since the scan, or the scan finished this very frame (PrepareRank).
+            if (key == null || !AggCache.TryGetValue(key, out agg)
+                || (agg.Version != _rankVersion && agg.Frame != Time.frameCount))
+            {
+                // Nobody prepared it (or slicing is off): scan in one go.
+                var job = new AggJob(SnapshotChests(cluster), filters, itemTokens);
+                job.Step(float.MaxValue);
+                agg = job.Result;
+                agg.Frame = Time.frameCount;
+                if (key != null)
+                {
+                    if (AggCache.Count > 256)
+                        AggCache.Clear();
+                    AggCache[key] = agg;
                 }
             }
 
-            var ranked = new List<RankedItem>(totals.Count);
-            foreach (KeyValuePair<string, int> pair in totals)
+            return BuildRanked(agg, filters, itemTokens, groupByCategory);
+        }
+
+        /// <summary>Sorted list for the paint (callers sort and change it, so each call builds its own).</summary>
+        private static List<RankedItem> BuildRanked(
+            AggResult agg,
+            List<int> filters,
+            List<string> itemTokens,
+            bool groupByCategory)
+        {
+            // Callers sort and change their list: hand out copies.
+            List<RankedItem> known = groupByCategory ? agg.RankedByCategory : agg.RankedByCount;
+            if (known != null)
+                return new List<RankedItem>(known);
+
+            var ranked = new List<RankedItem>(agg.Totals.Count);
+            foreach (KeyValuePair<string, int> pair in agg.Totals)
             {
                 ItemDrop.ItemData item;
-                sample.TryGetValue(pair.Key, out item);
+                agg.Sample.TryGetValue(pair.Key, out item);
                 int catId = CategoryIdForItem(item, filters, itemTokens);
                 ranked.Add(new RankedItem
                 {
@@ -3670,31 +4175,35 @@ namespace StoreAndCraft
 
             if (groupByCategory)
             {
-                ranked.Sort((a, b) =>
+                ranked.Sort((x, y) =>
                 {
-                    int byCat = a.CategoryOrder.CompareTo(b.CategoryOrder);
+                    int byCat = x.CategoryOrder.CompareTo(y.CategoryOrder);
                     if (byCat != 0)
                         return byCat;
-                    int byCount = b.Count.CompareTo(a.Count);
+                    int byCount = y.Count.CompareTo(x.Count);
                     if (byCount != 0)
                         return byCount;
-                    string na = a.Sample?.m_shared != null ? a.Sample.m_shared.m_name : "";
-                    string nb = b.Sample?.m_shared != null ? b.Sample.m_shared.m_name : "";
-                    return string.CompareOrdinal(na, nb);
+                    string nx = x.Sample?.m_shared != null ? x.Sample.m_shared.m_name : "";
+                    string ny = y.Sample?.m_shared != null ? y.Sample.m_shared.m_name : "";
+                    return string.CompareOrdinal(nx, ny);
                 });
             }
             else
             {
-                ranked.Sort((a, b) =>
+                ranked.Sort((x, y) =>
                 {
-                    int byCount = b.Count.CompareTo(a.Count);
+                    int byCount = y.Count.CompareTo(x.Count);
                     if (byCount != 0)
                         return byCount;
-                    string na = a.Sample?.m_shared != null ? a.Sample.m_shared.m_name : "";
-                    string nb = b.Sample?.m_shared != null ? b.Sample.m_shared.m_name : "";
-                    return string.CompareOrdinal(na, nb);
+                    string nx = x.Sample?.m_shared != null ? x.Sample.m_shared.m_name : "";
+                    string ny = y.Sample?.m_shared != null ? y.Sample.m_shared.m_name : "";
+                    return string.CompareOrdinal(nx, ny);
                 });
             }
+            if (groupByCategory)
+                agg.RankedByCategory = new List<RankedItem>(ranked);
+            else
+                agg.RankedByCount = new List<RankedItem>(ranked);
             return ranked;
         }
 
@@ -3738,6 +4247,28 @@ namespace StoreAndCraft
             _slots[i].Icon.color = Color.white;
             _slots[i].Shared = entry.Sample != null && entry.Sample.m_shared != null ? entry.Sample.m_shared.m_name : null;
             SetAmount(i, FormatCount(entry.Count));
+            MarkBelowMinimum(i, _slots[i].Shared, entry.Count); // SAC-MIN
+        }
+
+        // SAC-MIN (whole method): below the minimum set in the filter menu → red count (no count shown: red icon).
+        // The next paint resets the colors (PaintSlot / ClearSlot), so nothing stays red.
+        private void MarkBelowMinimum(int i, string shared, int count)
+        {
+            if (_slots == null || i < 0 || i >= _slots.Length)
+                return;
+            if (_view == null)
+                _view = GetComponent<ZNetView>();
+            if (!DisplayMinimums.Below(_view, shared, count))
+                return;
+            TextMeshProUGUI amount = _slots[i].Amount;
+            bool countShown = !_slots[i].HideAmount && amount != null && amount.enabled && !string.IsNullOrEmpty(amount.text);
+            DisplayMinimums.MarkRed(amount, _slots[i].Icon, countShown);
+        }
+
+        // SAC-MIN (whole method): a minimum changed in the filter menu: repaint with the current count.
+        internal void RepaintSoon()
+        {
+            _dirty = true;
         }
 
         private void ResetSlotStyle(int i)

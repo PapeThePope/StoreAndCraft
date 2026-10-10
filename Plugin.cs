@@ -9,11 +9,13 @@ namespace StoreAndCraft
 {
     [BepInPlugin(ModGuid, ModName, ModVersion)]
     [BepInDependency("randyknapp.mods.epicloot", BepInDependency.DependencyFlags.SoftDependency)]
+    // PierSupports loads first when present, so PierSupportsBridge can patch it (see Craft/PierSupportsBridge.cs).
+    [BepInDependency("squatch.piersupports", BepInDependency.DependencyFlags.SoftDependency)]
     public class Plugin : BaseUnityPlugin
     {
         public const string ModGuid = "com.morda.storeandcraft";
         public const string ModName = "StoreAndCraft";
-        public const string ModVersion = "1.4.2";
+        public const string ModVersion = "1.5.0";
         public const string ModAuthor = "Morda";
 
         internal static Plugin Instance { get; private set; }
@@ -44,6 +46,9 @@ namespace StoreAndCraft
             _harmony = new Harmony(ModGuid);
             _harmony.PatchAll(Assembly.GetExecutingAssembly());
             EpicLootBridge.TryRegister();
+#if SAC_PROFILE
+            PerfProfiler.Install(); // dev build only (-p:SacProfile=true)
+#endif
 
             Logger.LogInfo(ModName + " v" + ModVersion + " by " + ModAuthor + " loaded.");
         }
@@ -51,7 +56,8 @@ namespace StoreAndCraft
         private static void OnSettingChanged(object sender, SettingChangedEventArgs e)
         {
             // Station capacities: re-apply once next frame (also for values synced from the server).
-            StationCaps.MarkDirty();
+            if (StationCaps.IsCapSetting(e != null ? e.ChangedSetting : null))
+                StationCaps.MarkDirty();
             if (ConfigSync.IsApplyingRemoteConfig)
                 return;
             if (!AdminUtil.IsServer())
@@ -65,6 +71,8 @@ namespace StoreAndCraft
             StationCaps.Tick();
             TransferService.Tick();
             SmelterCatchUp.ServerTick(); // SAC-CATCHUP
+            // Storage displays: one loop over all boards (was a Unity Update per board, also on a dedicated server).
+            StorageDisplayBoard.TickAll();
 
             if (ZNet.instance != null && ZNet.instance.IsDedicated())
             {

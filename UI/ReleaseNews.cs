@@ -21,21 +21,29 @@ namespace StoreAndCraft
 
         private static string Text => Loc.T(
             "New in this version:\n"
+            + "- Everything works in your whole loaded base, no ranges to set (F10)\n"
+            + "- Storage Displays: set a minimum per item, below it the count turns red\n"
+            + "- Stations pause when their chest is full and show why above them\n"
+            + "- Chest mode \"Only build/craft\": only you fill it, only crafting and building take from it\n"
             + "Farm:\n"
-            + "- Plantable mushrooms: plant a mushroom to grow spores, plant the spores to grow mushrooms (Cultivator and scarecrow)\n"
-            + "- Scarecrow: waits 30 s after the harvest (hover shows the countdown), shows the time until the harvest and the seeds it needs\n"
-            + "- Scarecrow: seed plants too (Carrot (for seeds) ...), level ground / cultivate only on the grid\n"
-            + "Other:\n"
-            + "- Chests set to Only stations are no longer used for crafting and building\n"
-            + "- Fixed the magenta models with Vulkan / DirectX 12",
+            + "- Plant berry bushes and wild herbs with the Cultivator\n"
+            + "- Scarecrow: draw patterns with several crops\n"
+            + "- Ice, Royal Jelly and Crystal beehives\n"
+            + "Note:\n"
+            + "- Want your old ranges? Switch off \"whole loaded base\" in F10\n"
+            + "- Keep chests within about 80 m of their station: Valheim only loads the area around you",
             "Neu in dieser Version:\n"
+            + "- Alles funktioniert in deiner ganzen geladenen Base, keine Reichweiten mehr (F10)\n"
+            + "- Storage Displays: Minimum pro Item, darunter wird die Zahl rot\n"
+            + "- Stationen pausieren, wenn ihre Kiste voll ist, und zeigen den Grund an\n"
+            + "- Kistenmodus „Nur Bauen/Craften“: nur du füllst sie, nur Craften und Bauen nehmen daraus\n"
             + "Farm:\n"
-            + "- Pflanzbare Pilze: Pilz pflanzen gibt Sporen, Sporen pflanzen gibt Pilze (Kultivator und Vogelscheuche)\n"
-            + "- Vogelscheuche: wartet 30 s nach der Ernte (Hover zeigt den Countdown), zeigt die Zeit bis zur Ernte und die nötigen Samen\n"
-            + "- Vogelscheuche: auch Samen-Pflanzen (Karotte (für Samen) ...), Einebnen / Bestellen nur auf dem Raster\n"
-            + "Sonstiges:\n"
-            + "- Kisten mit Nur Stationen werden nicht mehr zum Craften und Bauen benutzt\n"
-            + "- Magentafarbene Modelle mit Vulkan / DirectX 12 behoben");
+            + "- Beerenbüsche und Wildkräuter mit dem Kultivator pflanzen\n"
+            + "- Vogelscheuche: Muster mit mehreren Pflanzen zeichnen\n"
+            + "- Eis-, Gelée-Royale- und Kristall-Bienenstock\n"
+            + "Hinweis:\n"
+            + "- Alte Reichweiten behalten? In F10 „ganze geladene Base“ ausschalten\n"
+            + "- Kisten höchstens ca. 80 m von ihrer Station: Valheim lädt nur den Bereich um dich herum");
 
         private static bool AlreadySeen()
         {
