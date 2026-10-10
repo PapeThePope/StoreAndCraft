@@ -12,6 +12,13 @@ Loot finds its chest. One key clears your pockets. Craft, upgrade and build stra
 
 ## Features
 
+### Whole loaded base
+- **On by default:** dump, crafting and building, stations, auto-store and the scarecrow use every chest in the area Valheim has loaded around you. No ranges to set
+- Items still only go into chests that already hold them, links and chest settings still apply
+- Each item type remembers the chest it went into last, the base is only searched again when that chest is full
+- Switch it off in the Morda Mod Manager to keep the old ranges in meters (under Advanced)
+- Valheim only loads the area around you: keep chests within about **80 m** of their station
+
 ### Store
 - **Auto-store:** ground items go into matching chests (one player in range is enough)
 - Chest takes an item only if the type is already inside (switch in the Morda Mod Manager)
@@ -22,6 +29,8 @@ Loot finds its chest. One key clears your pockets. Craft, upgrade and build stra
 - **Sort** and **Stack** buttons on inventory and chest panels
 - **Favorites** (**F**): never dumped or stored
 - **Search** (**Y**): nearest chest with the item blinks, map ping
+- A chest shows **Status: Full / Almost full** when you look at it (counts the stacks, not only the slots)
+- Fish are never picked up from the ground: they stay in the sea or your fish pond
 
 ### Craft and build from chests
 - Recipes, upgrades and hammer pieces use chest contents
@@ -43,6 +52,7 @@ Loot finds its chest. One key clears your pockets. Craft, upgrade and build stra
 - **Station capacities** (admin): kiln, smelter, blast furnace, eitr refinery, beehive
 - **Fermenter:** mead filter, add the same base in the first 60 s (batch up to 5)
 - Red label above a linked station when its chests ran out
+- **Stations wait when their chest is full:** "Chest full", "No linked chest", "No chest nearby" above them (switch in the Morda Mod Manager)
 - **Catch-up while away** (off by default): stations finish the time their area was unloaded
 
 ### Storage displays (hammer, Storage tab)
@@ -52,7 +62,7 @@ Loot finds its chest. One key clears your pockets. Craft, upgrade and build stra
 - **Min** field in each item tile of that menu: below this amount the count on the display turns red (empty or 0 = off)
 - **Shift + right click:** switch layout
 - **Shift + left click:** display scale
-- **Alt+E** on small: name / amount. **Alt+R:** scan range per display
+- **Alt+E** on small: name / amount. **Alt+R:** scan range per display (the only place to set it, 10 m until set)
 - Every display shows all of its items by itself (no shared pages)
 - Chests set to Ignore are not counted
 
@@ -66,10 +76,20 @@ Loot finds its chest. One key clears your pockets. Craft, upgrade and build stra
 - Needs cultivated ground. Unlocks with the Cultivator recipe
 - Plants again 30 s after the harvest. The hover shows that countdown, the time until the harvest and the seeds the grid needs
 - Seed plants too: **Carrot (for seeds)** and so on grow seeds, so the seed supply never runs out
+- **Patterns:** pick several crops (each gets a colour) and draw on the grid which crop grows where
+- Own ranges in the Morda Mod Manager: player to scarecrow, scarecrow to chest
 
 ### Plantable mushrooms (Cultivator)
 - Mushroom, Yellow mushroom, Blue mushroom: plant a mushroom to grow **spores**, plant the spores to grow mushrooms
 - Only on cultivated ground, the scarecrow plants and harvests them too
+
+### Berry bushes and wild herbs (Cultivator)
+- Raspberry, Blueberry, Cloudberry bushes (5 berries each), Dandelion, Thistle, Fiddlehead, Smoke puff (1 each, gives 3)
+- They stand there grown right away and grow their harvest back. The scarecrow plants and harvests them too
+
+### Beehives
+- Craft an **Ice**, **Royal Jelly** or **Crystal Queen Bee** at the workbench (Queen Bee + Ice / Royal Jelly / Crystal), then build the white / yellow / violet beehive
+- It makes ice / royal jelly / crystal at the pace of honey, auto-store works like for honey
 
 ### Armor stand
 - **E** swaps your armor with the stand's
@@ -88,6 +108,7 @@ Loot finds its chest. One key clears your pockets. Craft, upgrade and build stra
 - **F10** opens the list of all your mods. Click one to change its settings (switches, sliders, numbers, lists, hotkeys), then **Save**. The back arrow returns to the list
 - StoreAndCraft: all ranges, all switches, station capacities and **every hotkey** (click it, press the new key)
 - Servers: only admins from adminlist.txt can save the server values
+- **Activity log** (optional): every transfer in a short list, renamed chests show as Chest[Name], lines fade out one by one
 
 ---
 
