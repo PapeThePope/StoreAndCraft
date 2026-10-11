@@ -8,6 +8,8 @@ Loot finds its chest. One key clears your pockets. Craft, upgrade and build stra
 **Bug reports:** https://github.com/morda0511/StoreAndCraft/issues/1
 **Discord:** https://discord.gg/aVKVVmyzj
 
+**1.6.0:** the beehives (Ice, Royal Jelly, Crystal), berry bushes, wild herbs and mushrooms are no longer part of StoreAndCraft. Want them? Download **Forager's Garden**: everything you built with them comes back. Until then nothing is lost, queens and spores wait in your chests.
+
 ---
 
 ## Features
@@ -78,18 +80,7 @@ Loot finds its chest. One key clears your pockets. Craft, upgrade and build stra
 - Seed plants too: **Carrot (for seeds)** and so on grow seeds, so the seed supply never runs out
 - **Patterns:** pick several crops (each gets a colour) and draw on the grid which crop grows where
 - Own ranges in the Morda Mod Manager: player to scarecrow, scarecrow to chest
-
-### Plantable mushrooms (Cultivator)
-- Mushroom, Yellow mushroom, Blue mushroom: plant a mushroom to grow **spores**, plant the spores to grow mushrooms
-- Only on cultivated ground, the scarecrow plants and harvests them too
-
-### Berry bushes and wild herbs (Cultivator)
-- Raspberry, Blueberry, Cloudberry bushes (5 berries each), Dandelion, Thistle, Fiddlehead, Smoke puff (1 each, gives 3)
-- They stand there grown right away and grow their harvest back. The scarecrow plants and harvests them too
-
-### Beehives
-- Craft an **Ice**, **Royal Jelly** or **Crystal Queen Bee** at the workbench (Queen Bee + Ice / Royal Jelly / Crystal), then build the white / yellow / violet beehive
-- It makes ice / royal jelly / crystal at the pace of honey, auto-store works like for honey
+- Plants that other mods add to the Cultivator show up in its list too, for example the berry bushes, herbs and mushrooms of **Forager's Garden**
 
 ### Armor stand
 - **E** swaps your armor with the stand's

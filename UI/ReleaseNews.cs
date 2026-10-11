@@ -21,29 +21,15 @@ namespace StoreAndCraft
 
         private static string Text => Loc.T(
             "New in this version:\n"
-            + "- Everything works in your whole loaded base, no ranges to set (F10)\n"
-            + "- Storage Displays: set a minimum per item, below it the count turns red\n"
-            + "- Stations pause when their chest is full and show why above them\n"
-            + "- Chest mode \"Only build/craft\": only you fill it, only crafting and building take from it\n"
-            + "Farm:\n"
-            + "- Plant berry bushes and wild herbs with the Cultivator\n"
-            + "- Scarecrow: draw patterns with several crops\n"
-            + "- Ice, Royal Jelly and Crystal beehives\n"
-            + "Note:\n"
-            + "- Want your old ranges? Switch off \"whole loaded base\" in F10\n"
-            + "- Keep chests within about 80 m of their station: Valheim only loads the area around you",
+            + "- The beehives (Ice, Royal Jelly, Crystal), berry bushes, wild herbs and mushrooms are no longer part of StoreAndCraft\n"
+            + "- Want them? From version 1.6.0 on download the mod Forager's Garden\n"
+            + "- Without it your built hives and plants stay hidden and your queens and spores wait in your chests, until you install it\n"
+            + "- The scarecrow lists plants that other mods add to the Cultivator",
             "Neu in dieser Version:\n"
-            + "- Alles funktioniert in deiner ganzen geladenen Base, keine Reichweiten mehr (F10)\n"
-            + "- Storage Displays: Minimum pro Item, darunter wird die Zahl rot\n"
-            + "- Stationen pausieren, wenn ihre Kiste voll ist, und zeigen den Grund an\n"
-            + "- Kistenmodus „Nur Bauen/Craften“: nur du füllst sie, nur Craften und Bauen nehmen daraus\n"
-            + "Farm:\n"
-            + "- Beerenbüsche und Wildkräuter mit dem Kultivator pflanzen\n"
-            + "- Vogelscheuche: Muster mit mehreren Pflanzen zeichnen\n"
-            + "- Eis-, Gelée-Royale- und Kristall-Bienenstock\n"
-            + "Hinweis:\n"
-            + "- Alte Reichweiten behalten? In F10 „ganze geladene Base“ ausschalten\n"
-            + "- Kisten höchstens ca. 80 m von ihrer Station: Valheim lädt nur den Bereich um dich herum");
+            + "- Die Bienenstöcke (Eis, Gelée Royale, Kristall), Beerenbüsche, Wildkräuter und Pilze sind nicht mehr Teil von StoreAndCraft\n"
+            + "- Du willst sie haben? Ab Version 1.6.0 lade dir die Mod Forager's Garden herunter\n"
+            + "- Ohne sie bleiben gebaute Stöcke und Pflanzen versteckt und Königinnen und Sporen warten in deinen Kisten, bis du sie installierst\n"
+            + "- Die Vogelscheuche zeigt auch Pflanzen, die andere Mods in den Kultivator legen");
 
         private static bool AlreadySeen()
         {

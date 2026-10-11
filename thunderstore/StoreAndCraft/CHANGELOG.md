@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.6.0
+
+**Important:** the Ice, Royal Jelly and Crystal beehives (with their queens), the berry bushes, wild herbs and mushrooms (with their spores) are no longer part of StoreAndCraft. Want them? From 1.6.0 on download the mod **Forager's Garden**: everything you built with them is back at once. Without it your built hives and plants stay hidden, and your queens and spores wait in your chests as "(needs Forager's Garden)" items, nothing is lost.
+
+### NEW FEATURES
+- The **scarecrow** lists plants that other mods add to the Cultivator, for example the berry bushes, herbs and mushrooms of Forager's Garden
+
+### FIX
+- **Feed trough auto-fill** refills as soon as only one food is left: the same food, up to one full stack of it (berries: 1 left, up to 49 more), as much as your chests have. An empty trough gets the first allowed food, one stack at most
+
 ## 1.5.0
 
 ### NEW FEATURES

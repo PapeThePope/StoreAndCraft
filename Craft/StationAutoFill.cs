@@ -47,7 +47,8 @@ namespace StoreAndCraft
         private static readonly List<ItemStand> FoodTrays = new List<ItemStand>();
         // SAC feed troughs (their Container), refreshed from FeedTrough.Live each pulse.
         private static readonly List<Container> Troughs = new List<Container>();
-        private const int TroughTarget = 50;
+        /// <summary>A trough is refilled when this much food or less is left (the last one keeps the food type).</summary>
+        private const int TroughRefillAt = 1;
         private static readonly HashSet<int> FoodTrayIds = new HashSet<int>();
         private static readonly Dictionary<string, float> QuietUntil = new Dictionary<string, float>();
         // Non-owner handover time per station (instance id). The ZDO owner fills first; others only
@@ -662,7 +663,7 @@ namespace StoreAndCraft
                     && !IsTrue(ItemStandHaveAttachment, tray);
             else if (station is Container trough)
                 needs = !IsQuiet(trough, "feed") && IsOn(trough.GetComponent<ZNetView>())
-                    && !trough.IsInUse() && TroughEmpty(trough);
+                    && !trough.IsInUse() && TroughLow(trough);
             else
                 return false;
 
@@ -1812,11 +1813,16 @@ namespace StoreAndCraft
             }
         }
 
-        /// <summary>Cached flag from the trough itself (no inventory walk on every pulse).</summary>
-        private static bool TroughEmpty(Container trough)
+        /// <summary>
+        /// Needs food: empty, or only the last one left (TroughRefillAt). A trough holds a few stacks at most, so the
+        /// count is a short walk; the cached "has food" flag first spares it for most troughs.
+        /// </summary>
+        private static bool TroughLow(Container trough)
         {
             FeedTrough t = trough != null ? trough.GetComponent<FeedTrough>() : null;
-            return t != null && !t.HasFood;
+            if (t == null)
+                return false;
+            return !t.HasFood || TroughFoodCount(trough) <= TroughRefillAt;
         }
 
         private static int TroughFoodCount(Container trough)
@@ -1835,8 +1841,9 @@ namespace StoreAndCraft
         }
 
         /// <summary>
-        /// Empty feed trough: fill up to TroughTarget with allowed animal food
-        /// from (linked) chests. Troughs are never a source here (no self / trough-to-trough fill).
+        /// Feed trough down to its last one (or empty): refill the food that is still in it, up to one full stack of it
+        /// (berries max 50, 1 left: up to 49 more), with what the (linked) chests have. Empty trough: the first allowed
+        /// food the chests have, one stack at most. Troughs are never a source here (no self / trough-to-trough fill).
         /// </summary>
         private static bool FillTroughWhenLow(Container trough, Player player)
         {
@@ -1855,42 +1862,45 @@ namespace StoreAndCraft
                 return false;
             }
 
-            int need = TroughTarget - TroughFoodCount(trough);
-            if (need <= 0)
-                return false;
-
             int linkId = StationLink.Get(trough);
+            // The food still in the trough (the last one) stays the food type, while it is still allowed.
+            string keep = null;
+            int keepCount = 0;
+            foreach (ItemDrop.ItemData item in inv.GetAllItems())
+            {
+                if (item == null || item.m_shared == null || item.m_stack <= 0)
+                    continue;
+                if (keep == null && allowed.Contains(item.m_shared.m_name))
+                    keep = item.m_shared.m_name;
+                if (item.m_shared.m_name == keep)
+                    keepCount += item.m_stack;
+            }
+
             int added = 0;
-            var byShared = new Dictionary<string, int>(4);
+            string shared = null;
             StationLink.ExcludeTroughs = true;
             try
             {
-                for (int guard = 0; guard < allowed.Count && added < need; guard++)
+                shared = keep ?? FirstChestItem(player, allowed, linkId);
+                GameObject prefab = ItemIds.PrefabFromToken(shared);
+                ItemDrop drop = prefab != null ? prefab.GetComponent<ItemDrop>() : null;
+                if (drop != null && drop.m_itemData != null)
                 {
-                    string shared = FirstChestItem(player, allowed, linkId);
-                    GameObject prefab = ItemIds.PrefabFromToken(shared);
-                    if (prefab == null)
-                        break;
-
-                    int got = TakeFromChests(player, shared, need - added, linkId);
-                    if (got <= 0)
-                        break;
-
-                    if (!nv.IsOwner())
-                        nv.ClaimOwnership();
-                    int fit = got;
-                    while (fit > 0 && !inv.CanAddItem(prefab, fit))
-                        fit--;
-                    if (fit > 0 && !inv.AddItem(prefab, fit))
-                        fit = 0;
-                    ReturnUnused(trough, shared, got - fit);
-                    if (fit <= 0)
-                        break;
-
-                    added += fit;
-                    int n;
-                    byShared.TryGetValue(shared, out n);
-                    byShared[shared] = n + fit;
+                    // Never more than one stack of it in the trough.
+                    int need = StackLimits.MaxStack(drop.m_itemData) - keepCount;
+                    int got = need > 0 ? TakeFromChests(player, shared, need, linkId) : 0;
+                    if (got > 0)
+                    {
+                        if (!nv.IsOwner())
+                            nv.ClaimOwnership();
+                        int fit = got;
+                        while (fit > 0 && !inv.CanAddItem(prefab, fit))
+                            fit--;
+                        if (fit > 0 && !inv.AddItem(prefab, fit))
+                            fit = 0;
+                        ReturnUnused(trough, shared, got - fit);
+                        added = fit;
+                    }
                 }
             }
             finally
@@ -1901,11 +1911,14 @@ namespace StoreAndCraft
             if (added == 0)
             {
                 Quiet(trough, "feed", QuietEmptySeconds);
-                StationMissingLabel.SetMissing(trough, "feed", allowed.Count == 1
-                    ? DisplayFilters.ItemLabel(allowed[0])
-                    : Loc.T("Animal food", "Tierfutter"));
+                StationMissingLabel.SetMissing(trough, "feed", keep != null
+                    ? DisplayFilters.ItemLabel(keep)
+                    : allowed.Count == 1
+                        ? DisplayFilters.ItemLabel(allowed[0])
+                        : Loc.T("Animal food", "Tierfutter"));
                 return false;
             }
+            var byShared = new Dictionary<string, int>(1) { { shared, added } };
 
             ContainerFilter.SaveInventory(trough);
             StationMissingLabel.ClearMissing(trough, "feed");
@@ -1948,7 +1961,7 @@ namespace StoreAndCraft
             if (station is Turret t)
                 return slot == "ammo" && Mathf.RoundToInt(ReadNumber(TurretGetAmmo, t)) <= 0;
             if (station is Container trough)
-                return slot == "feed" && TroughEmpty(trough);
+                return slot == "feed" && TroughLow(trough);
             if (station is Scarecrow sc)
                 return slot == "seed" && sc.MissingSeeds;
             return false;

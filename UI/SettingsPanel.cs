@@ -842,7 +842,6 @@ namespace StoreAndCraft
             AddLocalToggle(Loc.T("Stack / Sort buttons on the inventory", "Stapeln- / Sortieren-Buttons am Inventar"), Plugin.Settings.ShowBagSortButtons);
             AddLocalToggle(Loc.T("Stack / Sort buttons on the chest", "Stapeln- / Sortieren-Buttons an der Kiste"), Plugin.Settings.ShowChestSortButtons);
             AddLocalToggle(Loc.T("Notice above stations (chest full / no chest)", "Hinweis über Stationen (Kiste voll / keine Kiste)"), Plugin.Settings.ShowStationNotices);
-
             // Hotkeys without a range slider (the others sit next to their feature above).
             AddHeader(Loc.T("More hotkeys (only for me, change by clicking)", "Weitere Hotkeys (nur für mich, zum Ändern anklicken)"));
             AddHotkeyRow(Loc.T("Chest / station / display settings", "Kisten- / Stations- / Display-Einstellungen"),

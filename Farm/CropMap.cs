@@ -30,19 +30,38 @@ namespace StoreAndCraft
         private static readonly Dictionary<string, Crop> ByRipe = new Dictionary<string, Crop>();
         private static readonly Dictionary<string, Crop> BySapling = new Dictionary<string, Crop>();
 
+        private static PieceTable _cultivatorTable;
+        private static int _builtPieceCount = -1;
+
         /// <summary>
-        /// The crop list is built once, from the Cultivator's pieces. Saplings added to that list afterwards (mushrooms,
-        /// wild plants: they register when the player spawns) need a rebuild, else they never show up.
+        /// The crop list is built from the Cultivator's pieces and built again when that list changed: other mods
+        /// (Forager's Garden: berry bushes, herbs, mushrooms) add or remove their saplings when the player spawns or a
+        /// switch is changed. Comparing the count is one field read.
         /// </summary>
-        internal static void Invalidate()
+        private static bool CultivatorChanged()
         {
-            _all = null;
+            PieceTable table = CultivatorTable();
+            int count = table != null && table.m_pieces != null ? table.m_pieces.Count : -1;
+            return count != _builtPieceCount;
+        }
+
+        private static PieceTable CultivatorTable()
+        {
+            if (_cultivatorTable != null)
+                return _cultivatorTable;
+            GameObject item = ObjectDB.instance != null ? ObjectDB.instance.GetItemPrefab("Cultivator") : null;
+            ItemDrop drop = item != null ? item.GetComponent<ItemDrop>() : null;
+            _cultivatorTable = drop != null && drop.m_itemData != null && drop.m_itemData.m_shared != null
+                ? drop.m_itemData.m_shared.m_buildPieces : null;
+            return _cultivatorTable;
         }
 
         public static List<Crop> All()
         {
-            if (_all != null && _all.Count > 0)
+            if (_all != null && _all.Count > 0 && !CultivatorChanged())
                 return _all;
+            PieceTable built = CultivatorTable();
+            _builtPieceCount = built != null && built.m_pieces != null ? built.m_pieces.Count : -1;
             _all = new List<Crop>();
             ByKey.Clear();
             ByRipe.Clear();
@@ -123,10 +142,7 @@ namespace StoreAndCraft
         /// <summary>The Cultivator's build pieces, or null when it cannot be read (then nothing is filtered).</summary>
         private static HashSet<GameObject> CultivatorPieces()
         {
-            GameObject item = ObjectDB.instance != null ? ObjectDB.instance.GetItemPrefab("Cultivator") : null;
-            ItemDrop drop = item != null ? item.GetComponent<ItemDrop>() : null;
-            PieceTable table = drop != null && drop.m_itemData != null && drop.m_itemData.m_shared != null
-                ? drop.m_itemData.m_shared.m_buildPieces : null;
+            PieceTable table = CultivatorTable();
             if (table == null || table.m_pieces == null || table.m_pieces.Count == 0)
                 return null;
             var set = new HashSet<GameObject>();

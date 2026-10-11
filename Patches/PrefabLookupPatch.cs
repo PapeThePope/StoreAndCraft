@@ -20,11 +20,7 @@ namespace StoreAndCraft
             if (found == null)
                 found = ScarecrowPrefab.PrefabForHash(hash);
             if (found == null)
-                found = MushroomCrops.PrefabForHash(hash);
-            if (found == null)
-                found = WildCrops.PrefabForHash(hash);
-            if (found == null)
-                found = QueenHives.PrefabForHash(hash);
+                found = MovedItemsGuard.PrefabForHash(hash); // queens / spores without Forager's Garden
             if (found != null)
                 __result = found;
         }
