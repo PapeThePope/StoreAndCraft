@@ -105,6 +105,34 @@ namespace StoreAndCraft
         }
 
         /// <summary>
+        /// Another mod is about to take <paramref name="amount"/> of one building material from the player's bag
+        /// (PlanBuild's plan pieces): pay what the bag lacks from chests first, with the same rules as a normal build
+        /// (craft reach, LeaveOne, chest modes). The caller then removes the rest from the bag.
+        /// </summary>
+        public static void PayBagDeficitFromChests(Player player, string sharedName, int amount)
+        {
+            if (player == null || !Active || amount <= 0 || string.IsNullOrEmpty(sharedName))
+                return;
+            Inventory inv = player.GetInventory();
+            if (inv == null)
+                return;
+            InventoryCountPatches.Skip++;
+            try
+            {
+                int deficit = amount - inv.CountItems(sharedName, -1, true);
+                if (deficit <= 0)
+                    return;
+                NearbyIndex.Tick();
+                ConsumeDeficitFromChests(sharedName, deficit, -1, RequirementBridge.LeaveOneInChests(player),
+                    player.transform.position, Plugin.Settings.CraftReach());
+            }
+            finally
+            {
+                InventoryCountPatches.Skip--;
+            }
+        }
+
+        /// <summary>
         /// During DoCrafting for onlyOne recipes, vanilla calls
         /// <c>inventory.RemoveItem(sharedName, amount, quality, …)</c> on the bag.
         /// If the chosen fish (etc.) lives only in a chest, that remove is a no-op and

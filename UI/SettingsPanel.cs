@@ -185,6 +185,8 @@ namespace StoreAndCraft
             _infoHeader = null;
             _advancedHeader = null;
             _status = null;
+            _groundListText = null;
+            _keepListText = null;
             if (_root != null)
             {
                 Object.Destroy(_root);
@@ -213,6 +215,10 @@ namespace StoreAndCraft
                     Close();
                 return;
             }
+
+            // An item list (OpenItemList) is open above, or closed with this Escape: F10 waits.
+            if (DisplayTypeMenu.ShouldBlockPause())
+                return;
 
             // The server's answer to the request in Open() can change the edit permission: rebuild once.
             bool canEditNow = ConfigCommands.CanEditRanges();
@@ -663,7 +669,7 @@ namespace StoreAndCraft
             CanvasScaler scaler = _root.GetComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.referenceResolution = new Vector2(RefW, RefH);
-            scaler.matchWidthOrHeight = 0.5f;
+            scaler.matchWidthOrHeight = 1f; // by height: on ultrawide screens (21:9, 32:9) the panel still fits vertically
 
             // Dim + click blocker only (no click-to-close: unsaved edits would be lost).
             var dim = NewUi("Dim", _root.transform, typeof(Image));
@@ -749,6 +755,7 @@ namespace StoreAndCraft
 
         private static void BuildContent()
         {
+            AddItemListButtons();
             RectTransform logRow = AddToggle(Loc.T("Show activity log", "Aktivitäts-Log anzeigen"), ActivityLog.Visible, true,
                 on => ActivityLog.SetVisible(on));
             var panelKey = new List<KeyValuePair<string, ConfigEntry<KeyboardShortcut>>>
@@ -1223,6 +1230,52 @@ namespace StoreAndCraft
             toggle.interactable = interactable;
             toggle.onValueChanged.AddListener(on => changed(on));
             return go;
+        }
+
+        // The two local item lists (Store/ItemLists.cs): wide buttons side by side at the top, they open the list in
+        // the display filter menu. The count in the text is updated when the list closes again.
+        private static TextMeshProUGUI _groundListText;
+        private static TextMeshProUGUI _keepListText;
+
+        private static void AddItemListButtons()
+        {
+            var row = NewUi("ItemLists", _content);
+            AddLayout(row.gameObject, 44f);
+            Button ground = MakeButton(row, "GroundList", "", () => OpenItemList(ItemListKind.GroundIgnore));
+            Place(ground.transform as RectTransform, 0f, 0f, 0.5f, 1f, 0f, 0f, -6f, 0f);
+            Button keep = MakeButton(row, "KeepList", "", () => OpenItemList(ItemListKind.KeepInBag));
+            Place(keep.transform as RectTransform, 0.5f, 0f, 1f, 1f, 6f, 0f, 0f, 0f);
+            _groundListText = ground.GetComponentInChildren<TextMeshProUGUI>(true);
+            _keepListText = keep.GetComponentInChildren<TextMeshProUGUI>(true);
+            RefreshItemListButtons();
+        }
+
+        private static void RefreshItemListButtons()
+        {
+            if (_groundListText != null)
+                _groundListText.text = Loc.T("Items left on the ground", "Am Boden lassen")
+                    + " (" + ItemLists.Count(ItemListKind.GroundIgnore) + ")";
+            if (_keepListText != null)
+                _keepListText.text = Loc.T("Items kept in inventory", "Im Inventar behalten")
+                    + " (" + ItemLists.Count(ItemListKind.KeepInBag) + ")";
+        }
+
+        /// <summary>F10 hides while the list is open and comes back when it closes.</summary>
+        private static void OpenItemList(ItemListKind list)
+        {
+            if (!IsOpen || _root == null)
+                return;
+            _root.SetActive(false);
+            DisplayTypeMenu.OpenList(list, () =>
+            {
+                if (IsOpen && _root != null)
+                {
+                    _root.SetActive(true);
+                    RefreshItemListButtons();
+                }
+            });
+            if (!DisplayTypeMenu.IsOpen && _root != null)
+                _root.SetActive(true);
         }
 
         /// <summary>Label on the left, one key button on the right (local hotkeys, saved right away).</summary>

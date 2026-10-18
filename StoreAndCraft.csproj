@@ -10,8 +10,8 @@
     <AssemblyName>StoreAndCraft</AssemblyName>
     <RootNamespace>StoreAndCraft</RootNamespace>
     <Product>StoreAndCraft</Product>
-    <Version>1.6.0</Version>
-    <ModVersion>1.6.0</ModVersion>
+    <Version>1.6.1</Version>
+    <ModVersion>1.6.1</ModVersion>
     <OutputPath>bin\$(Configuration)\</OutputPath>
     <DebugType>portable</DebugType>
   </PropertyGroup>
@@ -30,6 +30,8 @@
   <ItemGroup>
     <EmbeddedResource Include="Content\UI\*.png" />
     <EmbeddedResource Remove="Content\UI\*_rim.png" />
+    <!-- Translations (Localization/Loc.cs): pl.json = Polish. -->
+    <EmbeddedResource Include="Localization\*.json" LogicalName="StoreAndCraft.Localization.%(Filename)%(Extension)" />
   </ItemGroup>
 
   <PropertyGroup>

@@ -44,6 +44,12 @@ namespace StoreAndCraft
         private float _notBefore;      // no planting before this time (wheel edits settle first)
         private int _hoverFrame = -10; // last frame the crosshair was on this scarecrow
         private bool _missingSeeds;
+        // Grid spots that lost their cultivated ground get it back (paint only, never the height); a spot where that
+        // does not work is given up after RecultivateMaxTries, so nothing is tried over and over.
+        private const int RecultivateMaxTries = 2;
+        private const float RecultivateRetrySeconds = 5f;
+        private readonly Dictionary<long, int> _recultivateTries = new Dictionary<long, int>();
+        private bool _recultivated;
         private GameObject _preview;
         private int _previewHash;
 
@@ -622,6 +628,10 @@ namespace StoreAndCraft
                 {
                     ArmPlant(PlantDelaySeconds); // not enough seeds: try again later, visible in the hover text
                 }
+                else if (_recultivated)
+                {
+                    ArmPlant(RecultivateRetrySeconds); // ground cultivated again: plant those spots in a moment
+                }
                 else
                 {
                     Zdo.Set(KeyPlantAtHash, 0L); // planted: nothing more until the next harvest
@@ -819,6 +829,8 @@ namespace StoreAndCraft
         {
             var groups = new List<CropMap.Crop>();
             var targetsBy = new Dictionary<CropMap.Crop, List<int>>();
+            _recultivated = false;
+            int recultivated = 0;
             for (int i = 0; i < pts.Count; i++)
             {
                 CropMap.Crop crop = cellCrop[i];
@@ -827,8 +839,17 @@ namespace StoreAndCraft
                 if (crop.NeedCultivated)
                 {
                     Heightmap hm = Heightmap.FindHeightmap(pts[i]);
-                    if (hm == null || !hm.IsCultivated(pts[i]))
+                    if (hm == null)
                         continue;
+                    if (!hm.IsCultivated(pts[i]))
+                    {
+                        // The heightmap shows new paint only a moment later: this spot is planted in the next pass.
+                        if (TryRecultivate(pts[i]))
+                            recultivated++;
+                        continue;
+                    }
+                    if (_recultivateTries.Count > 0)
+                        _recultivateTries.Remove(SpotKey(pts[i])); // cultivated (again): a later loss may be fixed too
                 }
                 // Same room check as the plant itself: no seed is spent where it could never grow
                 // (rock, tree, building piece or an older plant too close).
@@ -845,6 +866,11 @@ namespace StoreAndCraft
                     groups.Add(crop);
                 }
                 list.Add(i);
+            }
+            if (recultivated > 0)
+            {
+                _recultivated = true;
+                ActivityLog.Note(Label(), Loc.T("Ground cultivated again: ", "Boden neu bestellt: ") + recultivated);
             }
             var missing = new List<CropMap.Crop>();
             for (int g = 0; g < groups.Count; g++)
@@ -1010,7 +1036,7 @@ namespace StoreAndCraft
             return dx * dx + dz * dz <= tol * tol ? r * cols + c : -1;
         }
 
-        // ---- terrain (buttons in the settings panel, never automatic)
+        // ---- terrain (buttons in the settings panel; by itself only TryRecultivate: paint, never the height)
 
         internal bool TerrainBusy { get; private set; }
 
@@ -1032,6 +1058,7 @@ namespace StoreAndCraft
                 player.Message(MessageHud.MessageType.Center, "$msg_privatezone", 0, null, false);
                 return;
             }
+            _recultivateTries.Clear(); // after the buttons every spot may be cultivated again by itself
             StartCoroutine(TerrainRoutine(level));
         }
 
@@ -1100,6 +1127,42 @@ namespace StoreAndCraft
             GameObject go = Instantiate(prefab, pos, Quaternion.identity);
             go.hideFlags = HideFlags.None;
             go.SetActive(true);
+        }
+
+        /// <summary>
+        /// A grid spot lost its cultivated ground (it happens now and then, the terrain change of that area is lost):
+        /// cultivate it again, paint only, never the height. The four terrain points around the spot, like the
+        /// Cultivate button. False when not tried: ward, button busy, or this spot already failed RecultivateMaxTries
+        /// times (something there keeps it from being cultivated: given up until the Cultivate button is pressed).
+        /// </summary>
+        private bool TryRecultivate(Vector3 spot)
+        {
+            if (TerrainBusy || ZoneSystem.instance == null)
+                return false;
+            long key = SpotKey(spot);
+            int tries;
+            _recultivateTries.TryGetValue(key, out tries);
+            if (tries >= RecultivateMaxTries)
+                return false;
+            _recultivateTries[key] = tries + 1;
+            if (!PrivateArea.CheckAccess(spot, 0f, false, false))
+                return false;
+            GameObject prefab = SacTerrainOps.CultivatePrefab;
+            if (prefab == null)
+                return false;
+            SacTerrainOps.Register(ObjectDB.instance);
+            float x0 = Mathf.Floor(spot.x), z0 = Mathf.Floor(spot.z);
+            for (int dx = 0; dx <= 1; dx++)
+            {
+                for (int dz = 0; dz <= 1; dz++)
+                    PlaceTerrainOp(prefab, new Vector3(x0 + dx, spot.y, z0 + dz));
+            }
+            return true;
+        }
+
+        private static long SpotKey(Vector3 spot)
+        {
+            return ((long)Mathf.RoundToInt(spot.x * 4f) << 32) ^ (uint)Mathf.RoundToInt(spot.z * 4f);
         }
 
         private static Vector3 Flat(Vector3 v)

@@ -129,18 +129,12 @@ namespace StoreAndCraft
             piece.m_description = Loc.T(
                 "Open it and put animal food inside (carrots, mushrooms, berries). Hungry tames walk up to it and eat, like food on the ground.",
                 "Öffnen und Tierfutter hineinlegen (Karotten, Pilze, Beeren). Hungrige Zahme laufen hin und fressen, wie bei Futter auf dem Boden.");
-            // Build-menu Storage tab is UsageTagFlags (not PieceCategory).
+            // Build-menu tabs are UsageTagFlags (not PieceCategory): our own "Store and Craft" tag.
             piece.m_category = Piece.PieceCategory.Furniture;
-            piece.m_usage = Piece.UsageTagFlags.Storage;
-            if (woodChest != null)
-            {
-                Piece chestPiece = woodChest.GetComponent<Piece>();
-                if (chestPiece != null)
-                {
-                    piece.m_category = chestPiece.m_category;
-                    piece.m_usage = chestPiece.m_usage;
-                }
-            }
+            Piece chestPiece = woodChest != null ? woodChest.GetComponent<Piece>() : null;
+            if (chestPiece != null)
+                piece.m_category = chestPiece.m_category;
+            piece.m_usage = BuildMenuTag.UsageFor(chestPiece);
             // Not a bed for comfort.
             piece.m_comfort = 0;
             piece.m_comfortGroup = Piece.ComfortGroup.None;

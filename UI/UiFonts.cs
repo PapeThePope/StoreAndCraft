@@ -51,7 +51,7 @@ namespace StoreAndCraft
             for (int i = 0; i < live.Length; i++)
             {
                 TMP_Text t = live[i];
-                if (t == null || t.font == null)
+                if (t == null || t.font == null || t.font.material == null || t.fontSharedMaterial == null)
                     continue;
                 if (t.font.name != null
                     && t.font.name.IndexOf("Liberation", System.StringComparison.OrdinalIgnoreCase) >= 0)
@@ -76,7 +76,7 @@ namespace StoreAndCraft
                 for (int i = 0; i < all.Length; i++)
                 {
                     TMP_FontAsset f = all[i];
-                    if (f == null || string.IsNullOrEmpty(f.name))
+                    if (f == null || string.IsNullOrEmpty(f.name) || f.material == null)
                         continue;
                     string n = f.name;
                     if (n.IndexOf("Liberation", System.StringComparison.OrdinalIgnoreCase) >= 0)
@@ -181,6 +181,10 @@ namespace StoreAndCraft
         private static bool TryPickThin(TMP_FontAsset f, bool exactNorse, bool anyNorse, bool averia, bool any)
         {
             if (f == null || string.IsNullOrEmpty(f.name))
+                return false;
+            // A font without material (other mods' fallback / dynamic fonts) makes TMP throw while measuring the text
+            // (NullReferenceException in TMPro.MaterialReference..ctor): never pick one.
+            if (f.material == null)
                 return false;
             string n = f.name;
             if (n.IndexOf("Liberation", System.StringComparison.OrdinalIgnoreCase) >= 0)

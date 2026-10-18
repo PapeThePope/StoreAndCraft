@@ -254,8 +254,8 @@ namespace StoreAndCraft
             Piece source = sign.GetComponent<Piece>();
             if (piece != null)
             {
-                piece.m_name = pieceName;
-                piece.m_description = pieceDesc;
+                piece.m_name = Loc.T(pieceName, pieceName);
+                piece.m_description = Loc.T(pieceDesc, pieceDesc);
                 if (piece.m_placeEffect == null && source != null)
                     piece.m_placeEffect = source.m_placeEffect;
                 if (piece.m_placeEffect == null)
@@ -265,12 +265,10 @@ namespace StoreAndCraft
                 // Carved boards have their own recipe (the vanilla signs keep the sign recipe).
                 if (custom)
                     ApplyCarvedRecipe(piece, visualBase);
-                // Hammer: Storage tab, next to the chests (same as the feed trough).
+                // Hammer: "Store and Craft" tag (same as the feed trough and the scarecrow).
                 if (_chestPiece != null)
-                {
                     piece.m_category = _chestPiece.m_category;
-                    piece.m_usage = _chestPiece.m_usage;
-                }
+                piece.m_usage = BuildMenuTag.UsageFor(_chestPiece);
                 // Carved boards: own hammer icon (Content/UI/icon_display_<visual>.png); else keep sign icon.
                 if (custom)
                 {

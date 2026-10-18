@@ -517,6 +517,22 @@ namespace StoreAndCraft
             }
         }
 
+        /// <summary>
+        /// A manually used item (hotbar key) that is none of the station's inputs, e.g. the hammer. Null item ([E])
+        /// or an input type (also one switched off in the station filter) is not "other".
+        /// </summary>
+        public static bool IsOtherItem(ItemDrop.ItemData item, List<string> inputs)
+        {
+            string shared = item != null && item.m_shared != null ? item.m_shared.m_name : null;
+            return !string.IsNullOrEmpty(shared) && inputs != null && inputs.Count > 0 && !inputs.Contains(shared);
+        }
+
+        public static bool IsOtherItem(ItemDrop.ItemData item, string input)
+        {
+            string shared = item != null && item.m_shared != null ? item.m_shared.m_name : null;
+            return !string.IsNullOrEmpty(shared) && !string.IsNullOrEmpty(input) && shared != input;
+        }
+
         public static void EnsureForUse(Player player, ref ItemDrop.ItemData item, List<string> fallbackNames)
         {
             if (player == null)

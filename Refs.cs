@@ -22,6 +22,19 @@ namespace StoreAndCraft
         // on each call. Null when the field is missing in this Valheim version: then the FieldInfo / GetComponent path.
         private static readonly AccessTools.FieldRef<Container, ZNetView> ContainerNviewRef = RefOrNull<Container, ZNetView>("m_nview");
         private static readonly AccessTools.FieldRef<ItemDrop, ZNetView> ItemDropNviewRef = RefOrNull<ItemDrop, ZNetView>("m_nview");
+        private static readonly AccessTools.FieldRef<Container, Inventory> ContainerInventoryRef = RefOrNull<Container, Inventory>("m_inventory");
+
+        /// <summary>
+        /// The chest's inventory field itself, for a chest that may already be destroyed (cleanup). Not through
+        /// Container.GetInventory: other mods patch that (AnimalFeedingTrough calls GetComponent in its postfix,
+        /// which throws on a destroyed chest). Null when the field is missing in this Valheim version.
+        /// </summary>
+        public static Inventory InventoryField(Container container)
+        {
+            if ((object)container == null || ContainerInventoryRef == null)
+                return null;
+            return ContainerInventoryRef(container);
+        }
 
         private static AccessTools.FieldRef<T, F> RefOrNull<T, F>(string field) where T : class
         {

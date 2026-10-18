@@ -76,6 +76,9 @@ namespace StoreAndCraft
         public ConfigEntry<bool> ShowChestSortButtons { get; }
         // Local only (not synced): "Chest full" / "No linked chest" / "No chest nearby" notice above stations.
         public ConfigEntry<bool> ShowStationNotices { get; }
+        // Local only (not synced): item lists set in the F10 panel (see Store/ItemLists.cs).
+        public ConfigEntry<string> GroundIgnoreItems { get; }
+        public ConfigEntry<string> KeepInBagItems { get; }
 
         public ModConfig(ConfigFile file)
         {
@@ -180,6 +183,10 @@ namespace StoreAndCraft
                 "Show the Stack and Sort buttons next to Take all on the chest panel. Local only, not synced.");
             ShowStationNotices = file.Bind("1 - General", "ShowStationNotices", true,
                 "Show the notice above a station when its output has nowhere to go: Chest full, No linked chest, No chest nearby. Only the text: a smelter still waits while its chest is full. Local only, not synced.");
+            GroundIgnoreItems = file.Bind("2 - Store", "GroundIgnoreItems", "",
+                "Items auto-store never picks up from the ground (e.g. eggs). Item names separated by commas, set in the F10 panel. Local only, not synced.");
+            KeepInBagItems = file.Bind("2 - Store", "KeepInBagItems", "",
+                "Items dump leaves in your inventory: name=amount separated by commas (e.g. $item_wood=10), set in the F10 panel. Only the dump key, not middle-click. Local only, not synced.");
             ReleaseNewsSeen = file.Bind("1 - General", "ReleaseNewsSeen", "",
                 "Set automatically: the StoreAndCraft version whose news Hugin already told you. Do not edit.");
 

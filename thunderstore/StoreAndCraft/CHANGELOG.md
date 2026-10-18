@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.6.1
+
+### NEW FEATURES
+- **PlanBuild** (other mod): plan pieces take their materials from your chests too, like building with the hammer (Plan Totem untouched)
+- **Leave on the ground** list (button at the top of F10, only for you): pick items in a window with search, auto-store never picks them up from the ground (for example eggs). Items on the list are shown first
+- **Keep in inventory** list (button at the top of F10, only for you): set an amount per item, the dump key leaves that many in your inventory (50 wood, keep 10: 40 go into the chests). Middle-click still stores the whole stack
+
+### UI IMPROVEMENTS
+- **Hammer:** own **Store and Craft** tab for the storage displays, the feed trough and the scarecrow (they were under Storage)
+
+### FIX
+- No more error spam (NullReferenceException in NearbyIndex.RemoveAt) together with mods that patch the chest inventory, for example AnimalFeedingTrough
+- **Mod manager (F10)** fits on ultrawide screens (21:9, 32:9): the window scales with the screen height, it no longer reaches over the top and bottom
+- Mod manager (F10): no more error when another mod brings a font without material (NullReferenceException in TMPro.MaterialReference)
+- **Scarecrow**: a spot of the field that lost its cultivated ground is cultivated again by itself and planted (only the ground color, never the height). A spot that cannot be cultivated is given up after 2 tries
+- **Stations:** a hotbar key with another item (for example the hammer) no longer puts ore or wood from your inventory into a kiln / smelter, and no longer takes fuel from a chest. It works like in vanilla again
+
 ## 1.6.0
 
 **Important:** the Ice, Royal Jelly and Crystal beehives (with their queens), the berry bushes, wild herbs and mushrooms (with their spores) are no longer part of StoreAndCraft. Want them? From 1.6.0 on download the mod **Forager's Garden**: everything you built with them is back at once. Without it your built hives and plants stay hidden, and your queens and spores wait in your chests as "(needs Forager's Garden)" items, nothing is lost.

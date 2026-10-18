@@ -6,7 +6,7 @@ Loot finds its chest. One key clears your pockets. Craft, upgrade and build stra
 **Required on the server and on every client (same version).** Valheim 1.0 · BepInExPack 5.4.2350+. Console players cannot load the mod.
 
 **Bug reports:** https://github.com/morda0511/StoreAndCraft/issues/1
-**Discord:** https://discord.gg/aVKVVmyzj
+**Discord:** https://discord.gg/9bD8sSdvX
 
 **1.6.0:** the beehives (Ice, Royal Jelly, Crystal), berry bushes, wild herbs and mushrooms are no longer part of StoreAndCraft. Want them? Download **Forager's Garden**: everything you built with them comes back. Until then nothing is lost, queens and spores wait in your chests.
 
@@ -30,6 +30,8 @@ Loot finds its chest. One key clears your pockets. Craft, upgrade and build stra
 - **Ctrl + middle mouse**: fill the hovered stack from chests
 - **Sort** and **Stack** buttons on inventory and chest panels
 - **Favorites** (**F**): never dumped or stored
+- **Leave on the ground** (button at the top of F10, only for you): pick items in a window with search, auto-store never picks them up from the ground (for example eggs)
+- **Keep in inventory** (button at the top of F10, only for you): an amount per item stays in your inventory when you dump (50 wood, keep 10: 40 go into the chests)
 - **Search** (**Y**): nearest chest with the item blinks, map ping
 - A chest shows **Status: Full / Almost full** when you look at it (counts the stacks, not only the slots)
 - Fish are never picked up from the ground: they stay in the sea or your fish pond
@@ -42,6 +44,7 @@ Loot finds its chest. One key clears your pockets. Craft, upgrade and build stra
 - **C + place**: grab a piece's materials from chests, nothing is placed
 - Epic Loot: craft, enchanting table, Forge of Potential use chest stock
 - PierSupports: the extra pier segments are paid from chests too
+- PlanBuild: plan pieces take their materials from chests too
 
 ### Stations
 - **[E]** refill: fuel, ore, food from chests (inventory first)
@@ -57,7 +60,7 @@ Loot finds its chest. One key clears your pockets. Craft, upgrade and build stra
 - **Stations wait when their chest is full:** "Chest full", "No linked chest", "No chest nearby" above them (switch in the Morda Mod Manager)
 - **Catch-up while away** (off by default): stations finish the time their area was unloaded
 
-### Storage displays (hammer, Storage tab)
+### Storage displays (hammer, Store and Craft tab)
 - Carved boards: small, medium, large, upright and wide. Vanilla sign displays too
 - **E:** pick categories (small: one category or up to 4 items), search box
 - **Right click** an item on the display (or in that menu): camera flies to the chest that holds it, the chest blinks (again = next chest)
@@ -68,14 +71,15 @@ Loot finds its chest. One key clears your pockets. Craft, upgrade and build stra
 - Every display shows all of its items by itself (no shared pages)
 - Chests set to Ignore are not counted
 
-### Feed trough (hammer)
+### Feed trough (hammer, Store and Craft tab)
 - Food filter, links, auto-fill (**Alt+E**)
 - Hungry tames walk to it and eat
 
-### Scarecrow (hammer)
+### Scarecrow (hammer, Store and Craft tab)
 - Plants a crop grid, harvests when all is ripe, replants
 - **Shift / Ctrl + wheel:** width / length. **E:** crop, harvest / plant, auto-fill, links
 - Needs cultivated ground. Unlocks with the Cultivator recipe
+- A spot that lost its cultivated ground is cultivated again by itself (only the ground color, never the height)
 - Plants again 30 s after the harvest. The hover shows that countdown, the time until the harvest and the seeds the grid needs
 - Seed plants too: **Carrot (for seeds)** and so on grow seeds, so the seed supply never runs out
 - **Patterns:** pick several crops (each gets a colour) and draw on the grid which crop grows where

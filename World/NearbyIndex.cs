@@ -114,7 +114,7 @@ namespace StoreAndCraft
                 return;
             Registered.Remove(container);
             ItemIndex.Remove(container);
-            ChestSummary.Forget(container.GetInventory());
+            ChestSummary.Forget(Refs.InventoryField(container));
             LastInventoryLoad.Remove(id);
             EmptyProbeUntil.Remove(id);
         }
@@ -781,9 +781,9 @@ namespace StoreAndCraft
             Container c = Registered[index];
             Registered.RemoveAt(index);
             ItemIndex.Remove(c);
-            // GetInventory only returns a field: safe on a destroyed container too.
+            // The field itself, not GetInventory: other mods' GetInventory patches throw on a destroyed container.
             if ((object)c != null)
-                ChestSummary.Forget(c.GetInventory());
+                ChestSummary.Forget(Refs.InventoryField(c));
             if (c != null)
             {
                 int id = c.GetInstanceID();

@@ -388,7 +388,7 @@ namespace StoreAndCraft
                 DisplayLayouts.LayoutDef own = UsesSections()
                     ? DisplayLayouts.GetLayout(LayoutId(), LayoutVariant())
                     : null;
-                string ownName = own != null && !string.IsNullOrEmpty(own.name) ? own.name : "Standard";
+                string ownName = Loc.T(own != null && !string.IsNullOrEmpty(own.name) ? own.name : "Standard", null);
                 return Loc.T("Layout", "Layout") + " : " + "<color=yellow><b>" + ownName + "</b></color>";
             }
             string mode = ContentLayoutMode() == LayoutCompact
@@ -398,7 +398,7 @@ namespace StoreAndCraft
             {
                 DisplayLayouts.LayoutDef layout = DisplayLayouts.GetLayout(LayoutId(), LayoutVariant());
                 if (layout != null && !string.IsNullOrEmpty(layout.name))
-                    mode += " · " + layout.name;
+                    mode += " · " + Loc.T(layout.name, layout.name);
             }
             return Loc.T("Layout", "Layout") + " : "
                 + "<color=yellow><b>" + mode + "</b></color>";
@@ -1055,11 +1055,11 @@ namespace StoreAndCraft
             switch (_kind)
             {
                 case DisplayKind.Small:
-                    return "Small Storage Display";
+                    return Loc.T("Small Storage Display", "Small Storage Display");
                 case DisplayKind.Large:
-                    return "Large Storage Display";
+                    return Loc.T("Large Storage Display", "Large Storage Display");
                 default:
-                    return "Medium Storage Display";
+                    return Loc.T("Medium Storage Display", "Medium Storage Display");
             }
         }
 

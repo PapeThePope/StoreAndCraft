@@ -48,10 +48,13 @@ namespace StoreAndCraft
     {
         private static int _fillDepth;
 
-        private static void Prefix(Smelter __instance, Humanoid user)
+        private static void Prefix(Smelter __instance, Humanoid user, ItemDrop.ItemData item)
         {
             Player player = StationFeed.LocalPlayer(user);
             if (player == null || __instance == null)
+                return;
+            // Hotbar key with another item (hammer, tool...): vanilla says "wrong item", nothing comes from chests.
+            if (StationFeed.IsOtherItem(item, StationFeed.SharedFrom(__instance.m_fuelItem)))
                 return;
             StationLink.PushStation(__instance);
             try
@@ -96,6 +99,10 @@ namespace StoreAndCraft
         {
             Player player = StationFeed.LocalPlayer(user);
             if (player == null || __instance == null)
+                return;
+            // Hotbar key with an item this station never takes (hammer, tool...): stays vanilla ("won't work", the
+            // hammer is equipped). Before, the item was dropped and the station took ore from the bag like [E].
+            if (StationFeed.IsOtherItem(item, StationPullFilter.OreChoices(__instance)))
                 return;
             StationLink.PushStation(__instance);
             try
@@ -465,6 +472,9 @@ namespace StoreAndCraft
             StationFeed.EnsureCookDropPrefab(__instance, item);
 
             if (player == null)
+                return;
+            // Hotbar key with an item this station never cooks: stays vanilla (see SmelterAddOrePatch).
+            if (StationFeed.IsOtherItem(item, StationPullFilter.FoodChoices(__instance)))
                 return;
             StationLink.PushStation(__instance);
             try

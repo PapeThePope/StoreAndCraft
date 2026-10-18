@@ -289,7 +289,7 @@ namespace StoreAndCraft
             CanvasScaler scaler = _root.GetComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.referenceResolution = new Vector2(RefW, RefH);
-            scaler.matchWidthOrHeight = 0.5f;
+            scaler.matchWidthOrHeight = 1f; // by height: on ultrawide screens (21:9, 32:9) the panel still fits vertically
 
             RectTransform dim = SettingsPanel.NewUi("Dim", _root.transform, typeof(Image));
             SettingsPanel.Stretch(dim);

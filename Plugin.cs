@@ -11,11 +11,13 @@ namespace StoreAndCraft
     [BepInDependency("randyknapp.mods.epicloot", BepInDependency.DependencyFlags.SoftDependency)]
     // PierSupports loads first when present, so PierSupportsBridge can patch it (see Craft/PierSupportsBridge.cs).
     [BepInDependency("squatch.piersupports", BepInDependency.DependencyFlags.SoftDependency)]
+    // Same for PlanBuild (see Craft/PlanBuildBridge.cs).
+    [BepInDependency("marcopogo.PlanBuild", BepInDependency.DependencyFlags.SoftDependency)]
     public class Plugin : BaseUnityPlugin
     {
         public const string ModGuid = "com.morda.storeandcraft";
         public const string ModName = "StoreAndCraft";
-        public const string ModVersion = "1.6.0";
+        public const string ModVersion = "1.6.1";
         public const string ModAuthor = "Morda";
 
         internal static Plugin Instance { get; private set; }

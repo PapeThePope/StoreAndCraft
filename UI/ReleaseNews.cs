@@ -21,15 +21,15 @@ namespace StoreAndCraft
 
         private static string Text => Loc.T(
             "New in this version:\n"
-            + "- The beehives (Ice, Royal Jelly, Crystal), berry bushes, wild herbs and mushrooms are no longer part of StoreAndCraft\n"
-            + "- Want them? From version 1.6.0 on download the mod Forager's Garden\n"
-            + "- Without it your built hives and plants stay hidden and your queens and spores wait in your chests, until you install it\n"
-            + "- The scarecrow lists plants that other mods add to the Cultivator",
+            + "- F10: a list of items auto-store leaves on the ground (for example eggs)\n"
+            + "- F10: keep an amount per item in your inventory when you dump (50 wood, keep 10: 40 go into the chests)\n"
+            + "- PlanBuild: plan pieces take their materials from your chests\n"
+            + "- Hammer: own Store and Craft tab for displays, feed trough and scarecrow",
             "Neu in dieser Version:\n"
-            + "- Die Bienenstöcke (Eis, Gelée Royale, Kristall), Beerenbüsche, Wildkräuter und Pilze sind nicht mehr Teil von StoreAndCraft\n"
-            + "- Du willst sie haben? Ab Version 1.6.0 lade dir die Mod Forager's Garden herunter\n"
-            + "- Ohne sie bleiben gebaute Stöcke und Pflanzen versteckt und Königinnen und Sporen warten in deinen Kisten, bis du sie installierst\n"
-            + "- Die Vogelscheuche zeigt auch Pflanzen, die andere Mods in den Kultivator legen");
+            + "- F10: eine Liste mit Items, die Auto-Lagern am Boden liegen lässt (zum Beispiel Eier)\n"
+            + "- F10: pro Item eine Anzahl, die beim Einlagern im Inventar bleibt (50 Holz, 10 behalten: 40 gehen in die Kisten)\n"
+            + "- PlanBuild: Bauplan-Teile nehmen ihr Material aus deinen Kisten\n"
+            + "- Hammer: eigener Reiter Store and Craft für Displays, Futtertrog und Vogelscheuche");
 
         private static bool AlreadySeen()
         {

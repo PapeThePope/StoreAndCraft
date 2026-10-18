@@ -95,10 +95,8 @@ namespace StoreAndCraft
                 "Steht in der Mitte ihres Feld-Rasters, bepflanzt es mit Samen aus Kisten in der Nähe und erntet das ganze Feld, sobald alles reif ist. E: Pflanze, Ernten / Pflanzen, Link. Umschalt / Strg + Mausrad: Breite / Länge. B: an/aus.");
             Piece chestPiece = woodChest != null ? woodChest.GetComponent<Piece>() : null;
             if (chestPiece != null)
-            {
                 piece.m_category = chestPiece.m_category;
-                piece.m_usage = chestPiece.m_usage;
-            }
+            piece.m_usage = BuildMenuTag.UsageFor(chestPiece); // hammer: "Store and Craft" tag
             piece.m_canBeRemoved = true;
             piece.m_isUpgrade = false;
             piece.m_resources = Recipe();

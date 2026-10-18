@@ -104,6 +104,9 @@ namespace StoreAndCraft
                         continue;
                     if (IsFish(drop))
                         continue;
+                    // F10 "Do not pick up from the ground" list (this PC: the drops this game owns).
+                    if (drop.m_itemData.m_shared != null && ItemLists.IgnoredOnGround(drop.m_itemData.m_shared.m_name))
+                        continue;
 
                     // A drop that just failed to go in waits a while instead of being tried again every pass.
                     int dropId = drop.GetInstanceID();

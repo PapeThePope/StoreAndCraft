@@ -77,6 +77,9 @@ namespace StoreAndCraft
         private const float HeaderFont = 22f;
 
         private static StorageDisplayBoard _board;
+        // F10 item lists (Store/ItemLists.cs): the same menu without a display, tiles edit the list instead.
+        private static ItemListKind _list;
+        private static System.Action _onListClosed;
         private static float _openedAt;
         private static int _suppressMenuFrame;
         private static bool _closing;
@@ -215,6 +218,8 @@ namespace StoreAndCraft
                 InventoryGui.instance.Hide();
 
             _board = board;
+            _list = ItemListKind.None;
+            _onListClosed = null;
             _openedAt = Time.unscaledTime;
             _focusId = 0;
             _search = "";
@@ -234,15 +239,65 @@ namespace StoreAndCraft
             IsOpen = true;
         }
 
+        /// <summary>
+        /// Opens the menu for one of the F10 item lists (no display): ground ignore = tiles switch on/off, keep in
+        /// inventory = tiles take an amount. <paramref name="onClosed"/> runs when the menu closes (F10 comes back).
+        /// </summary>
+        public static void OpenList(ItemListKind list, System.Action onClosed)
+        {
+            if (list == ItemListKind.None || Player.m_localPlayer == null)
+                return;
+            if (IsOpen)
+                Close();
+            if (InventoryGui.instance != null && InventoryGui.IsVisible())
+                InventoryGui.instance.Hide();
+
+            _board = null;
+            _list = list;
+            _onListClosed = onClosed;
+            _openedAt = Time.unscaledTime;
+            _focusId = 0;
+            _search = "";
+            UiFonts.ThinNorse();
+            ItemIds.PrefabFromToken("$item_wood");
+            _vanillaStyle = true;
+
+            EnsureRoot();
+            if (_root == null)
+            {
+                _list = ItemListKind.None;
+                _onListClosed = null;
+                if (onClosed != null)
+                    onClosed();
+                return;
+            }
+            _root.SetActive(true);
+            RebuildUi(buildItems: false);
+            _pendingItems = true;
+            IsOpen = true;
+        }
+
+        private static string ListTitle()
+        {
+            if (_list == ItemListKind.GroundIgnore)
+                return Loc.T("Leave on the ground", "Am Boden lassen");
+            if (_list == ItemListKind.KeepInBag)
+                return Loc.T("Keep in inventory", "Im Inventar behalten");
+            return null;
+        }
+
         public static void Close()
         {
             if (_closing)
                 return;
             _closing = true;
+            System.Action onListClosed = _onListClosed;
             try
             {
                 IsOpen = false;
                 _board = null;
+                _list = ItemListKind.None;
+                _onListClosed = null;
                 _focusId = 0;
                 _pendingItems = false;
                 _suppressMenuFrame = Time.frameCount;
@@ -252,6 +307,8 @@ namespace StoreAndCraft
             {
                 _closing = false;
             }
+            if (onListClosed != null)
+                onListClosed();
         }
 
         public static void CloseIf(StorageDisplayBoard board)
@@ -269,7 +326,7 @@ namespace StoreAndCraft
         {
             if (!IsOpen)
                 return;
-            if (_board == null || Player.m_localPlayer == null)
+            if ((_board == null && _list == ItemListKind.None) || Player.m_localPlayer == null)
             {
                 Close();
                 return;
@@ -285,7 +342,7 @@ namespace StoreAndCraft
                 return;
             if (ZInput.GetKeyDown(KeyCode.Escape, true) || ZInput.GetButtonDown("JoyButtonB"))
             {
-                if (DisplayMinimums.CloseEditor()) // SAC-MIN: Escape ends a "Min" edit first, the menu stays open
+                if (TileAmountField.CloseEditor()) // Escape ends a "Min" / keep edit first, the menu stays open
                     return;
                 // First Escape only leaves the search box.
                 if (IsTyping)
@@ -319,6 +376,11 @@ namespace StoreAndCraft
 
         private static void ToggleCategory(int id)
         {
+            if (_list != ItemListKind.None)
+            {
+                FocusCategory(id); // the lists hold single items only
+                return;
+            }
             if (_board == null || id <= 0)
                 return;
             ClearSearch();
@@ -392,7 +454,8 @@ namespace StoreAndCraft
             hostRt.sizeDelta = new Vector2(RefW, RefH);
             hostRt.anchoredPosition = Vector2.zero;
 
-            BuildLeftPanel(hostRt);
+            if (_list == ItemListKind.None)
+                BuildLeftPanel(hostRt); // the F10 item lists show every item on the right, no categories
             BuildRightPanel(hostRt);
         }
 
@@ -491,13 +554,16 @@ namespace StoreAndCraft
             var panel = new GameObject("PanelRight", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
             panel.transform.SetParent(host, false);
             RectTransform rt = panel.transform as RectTransform;
-            PlaceTopLeft(rt, RightX, RightY, RightW, RightH);
+            bool list = _list != ItemListKind.None;
+            PlaceTopLeft(rt, list ? (RefW - RightW) * 0.5f : RightX, RightY, RightW, RightH);
             ApplySprite(panel.GetComponent<Image>(), PanelSprite(false), Color.white);
 
             PlaceInsetBg(rt, InsetSprite(false), ItemInsetL, ItemInsetT, ItemInsetR, ItemInsetB);
             PlaceVanillaInset(rt, ItemInsetL, ItemInsetT, ItemInsetR, ItemInsetB);
-            PlacePanelHeader(rt, Loc.T("Filter", "Filter"), ItemInsetT);
+            PlacePanelHeader(rt, list ? ListTitle() : Loc.T("Filter", "Filter"), ItemInsetT);
             BuildSearchField(rt);
+            if (list)
+                BuildListApplyButton(rt);
 
             var scrollGo = new GameObject("ItemScroll", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(ScrollRect));
             scrollGo.transform.SetParent(rt, false);
@@ -699,7 +765,7 @@ namespace StoreAndCraft
         private static void RebuildUi(bool buildItems, bool preserveCatScroll = false, bool resetItemScroll = true)
         {
             EnsureRoot();
-            if (_catContent == null || _itemContent == null)
+            if ((_catContent == null && _list == ItemListKind.None) || _itemContent == null)
                 return;
 
             float catScrollPos = _catScroll != null ? _catScroll.verticalNormalizedPosition : 1f;
@@ -723,7 +789,7 @@ namespace StoreAndCraft
             EnsureFocus(selected, selectedItems);
 
             int catN = 0;
-            for (int i = 0; i < DisplayFilters.Choices.Length; i++)
+            for (int i = 0; i < DisplayFilters.Choices.Length && _catContent != null; i++)
             {
                 DisplayFilter choice = DisplayFilters.Choices[i];
                 int id = choice.Id;
@@ -736,7 +802,8 @@ namespace StoreAndCraft
                     () => FocusCategory(captured),
                     () => ToggleCategory(captured));
             }
-            _catContent.sizeDelta = new Vector2(0f, catN * (CatRowH + CatRowGap) + 4f);
+            if (_catContent != null)
+                _catContent.sizeDelta = new Vector2(0f, catN * (CatRowH + CatRowGap) + 4f);
 
             if (_catScroll != null)
                 _catScroll.verticalNormalizedPosition = preserveCatScroll ? catScrollPos : 1f;
@@ -745,11 +812,11 @@ namespace StoreAndCraft
                 return;
 
             var cells = new List<ItemCellData>();
-            if (!string.IsNullOrEmpty(_search))
+            if (!string.IsNullOrEmpty(_search) || _list != ItemListKind.None)
             {
-                cells = SearchCells(_search, selectedSet, selectedItemSet);
+                cells = SearchCells(_search ?? "", selectedSet, selectedItemSet);
             }
-            else if (_focusId == DisplayFilters.EpicLootGroupId)
+            else if (_focusId == DisplayFilters.EpicLootGroupId && _list == ItemListKind.None)
             {
                 bool allOn = selectedSet.Contains(DisplayFilters.EpicLootGroupId);
                 cells.Add(new ItemCellData
@@ -827,9 +894,35 @@ namespace StoreAndCraft
                 }
             }
 
+            if (_list != ItemListKind.None)
+                cells = ListCells(cells);
             BuildItemGrid(cells);
             if (_itemScroll != null)
                 _itemScroll.verticalNormalizedPosition = resetItemScroll ? 1f : itemScrollPos;
+        }
+
+        /// <summary>F10 item lists: single items only, "on" = on the list (keep: the tile click edits the amount).</summary>
+        private static List<ItemCellData> ListCells(List<ItemCellData> cells)
+        {
+            var result = new List<ItemCellData>(cells.Count);
+            for (int i = 0; i < cells.Count; i++)
+            {
+                ItemCellData cell = cells[i];
+                if (string.IsNullOrEmpty(cell.Shared))
+                    continue;
+                cell.On = ItemLists.Has(_list, cell.Shared);
+                cell.Click = null; // AddItemCell: the tile switches / edits in place (no rebuild, nothing jumps)
+                result.Add(cell);
+            }
+            // Items on the list first (each part keeps its A-Z order): easy to find to switch them off again.
+            var sorted = new List<ItemCellData>(result.Count);
+            for (int i = 0; i < result.Count; i++)
+                if (result[i].On)
+                    sorted.Add(result[i]);
+            for (int i = 0; i < result.Count; i++)
+                if (!result[i].On)
+                    sorted.Add(result[i]);
+            return sorted;
         }
 
         private struct ItemCellData
@@ -959,6 +1052,73 @@ namespace StoreAndCraft
             _itemContent.anchoredPosition = Vector2.zero;
         }
 
+        /// <summary>Leave on the ground: a click on the tile switches the item on / off the list.</summary>
+        private static void AddGroundToggle(RectTransform tile, string token)
+        {
+            Button btn = tile.GetComponent<Button>();
+            if (btn == null)
+                return;
+            btn.onClick.AddListener(() =>
+            {
+                ItemLists.ToggleGround(token);
+                SetCellOn(tile, ItemLists.Has(ItemListKind.GroundIgnore, token));
+            });
+        }
+
+        /// <summary>The F10 item lists have no left panel: Apply sits top right in the item panel.</summary>
+        private static void BuildListApplyButton(RectTransform panel)
+        {
+            var apply = new GameObject("Apply", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(Button));
+            apply.transform.SetParent(panel, false);
+            RectTransform applyRt = apply.transform as RectTransform;
+            applyRt.anchorMin = applyRt.anchorMax = new Vector2(1f, 1f);
+            applyRt.pivot = new Vector2(1f, 1f);
+            applyRt.anchoredPosition = new Vector2(-(ItemInsetR + 20f), -22f);
+            applyRt.sizeDelta = new Vector2(ApplyW, ApplyH);
+            ApplySprite(apply.GetComponent<Image>(), V("button") ?? UiAssets.BtnApply, Color.white);
+            Button applyBtn = apply.GetComponent<Button>();
+            applyBtn.transition = Selectable.Transition.None;
+            applyBtn.onClick.AddListener(Close);
+
+            var textGo = new GameObject("Text", typeof(RectTransform));
+            textGo.transform.SetParent(apply.transform, false);
+            Stretch(textGo.transform as RectTransform);
+            TextMeshProUGUI tmp = UiFonts.CreateLabel(textGo, ApplyFont);
+            StyleLabel(tmp, ApplyFont, LetterSpace);
+            tmp.alignment = TextAlignmentOptions.Center;
+            tmp.color = Gold;
+            tmp.text = Loc.T("Apply", "Apply");
+        }
+
+        /// <summary>Keep in inventory: the amount box; a click on the tile edits it too.</summary>
+        private static void AddKeepField(RectTransform tile, string token)
+        {
+            TileAmountField.Field field = TileAmountField.Add(tile, Loc.T("Keep", "Rest"),
+                () => ItemLists.GetKeep(token), amount => ItemLists.SetKeep(token, amount),
+                amount => SetCellOn(tile, amount > 0));
+            Button btn = tile.GetComponent<Button>();
+            if (field != null && btn != null)
+                btn.onClick.AddListener(field.BeginEdit);
+        }
+
+        /// <summary>Tile look after its amount changed (no grid rebuild while the next box may be edited).</summary>
+        private static void SetCellOn(RectTransform tile, bool on)
+        {
+            if (tile == null)
+                return;
+            Image img = tile.GetComponent<Image>();
+            Sprite sprite = V(on ? "button_highlight" : "button_small");
+            if (img != null && sprite != null)
+            {
+                SetStyled(img, sprite, Color.white);
+                img.color = new Color(1f, 1f, 1f, on ? 0.75f : 0.45f);
+            }
+            Transform label = tile.Find("Label");
+            TextMeshProUGUI tmp = label != null ? label.GetComponent<TextMeshProUGUI>() : null;
+            if (tmp != null)
+                tmp.color = on ? Gold : Muted;
+        }
+
         private static void AddItemCell(int col, int row, ItemCellData data)
         {
             var go = new GameObject("Item" + row + "_" + col, typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
@@ -1050,6 +1210,10 @@ namespace StoreAndCraft
             tmp.color = data.On ? Gold : Muted;
             tmp.text = data.Label;
             DisplayMinimums.AddTileField(rt, _board, data.Shared); // SAC-MIN: "Min" field in the tile
+            if (_list == ItemListKind.KeepInBag && !string.IsNullOrEmpty(data.Shared))
+                AddKeepField(rt, data.Shared);
+            if (_list == ItemListKind.GroundIgnore && !string.IsNullOrEmpty(data.Shared))
+                AddGroundToggle(rt, data.Shared);
 
             if (wholeCellClick)
                 return;
