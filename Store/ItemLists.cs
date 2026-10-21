@@ -25,10 +25,13 @@ namespace StoreAndCraft
 
         private static string _groundRaw;
         private static readonly HashSet<string> Ground = new HashSet<string>(System.StringComparer.Ordinal);
+        private static string _restockRaw;
+        private static readonly HashSet<string> Restock = new HashSet<string>(System.StringComparer.Ordinal);
         private static string _keepRaw;
         private static readonly Dictionary<string, int> Keep = new Dictionary<string, int>(System.StringComparer.Ordinal);
 
         private static ConfigEntry<string> GroundEntry => Plugin.Settings != null ? Plugin.Settings.GroundIgnoreItems : null;
+        private static ConfigEntry<string> RestockEntry => Plugin.Settings != null ? Plugin.Settings.RestockItems : null;
         private static ConfigEntry<string> KeepEntry => Plugin.Settings != null ? Plugin.Settings.KeepInBagItems : null;
 
         // ---- read (auto-store / dump)
@@ -97,6 +100,40 @@ namespace StoreAndCraft
             entry.Value = string.Join(",", keys.ToArray());
         }
 
+        /// <summary>Item is marked Fill: the restock key brings it up to its keep amount.</summary>
+        public static bool IsRestock(string token)
+        {
+            string key = KeyOf(token);
+            return key != null && RestockSet().Contains(key);
+        }
+
+        public static void ToggleRestock(string token)
+        {
+            string key = KeyOf(token);
+            ConfigEntry<string> entry = RestockEntry;
+            if (key == null || entry == null)
+                return;
+            var set = new HashSet<string>(RestockSet(), System.StringComparer.Ordinal);
+            if (!set.Remove(key))
+                set.Add(key);
+            var keys = new List<string>(set);
+            keys.Sort(System.StringComparer.Ordinal);
+            entry.Value = string.Join(",", keys.ToArray());
+        }
+
+        /// <summary>Items marked Fill that have a keep amount: shared name and the amount to reach.</summary>
+        public static List<KeyValuePair<string, int>> RestockTargets()
+        {
+            var list = new List<KeyValuePair<string, int>>();
+            foreach (string shared in RestockSet())
+            {
+                int amount;
+                if (KeepMap().TryGetValue(shared, out amount) && amount > 0)
+                    list.Add(new KeyValuePair<string, int>(shared, amount));
+            }
+            return list;
+        }
+
         public static int GetKeep(string token)
         {
             string key = KeyOf(token);
@@ -151,6 +188,24 @@ namespace StoreAndCraft
                     Ground.Add(key);
             }
             return Ground;
+        }
+
+        private static HashSet<string> RestockSet()
+        {
+            ConfigEntry<string> entry = RestockEntry;
+            string raw = entry != null ? entry.Value ?? "" : "";
+            if (raw == _restockRaw)
+                return Restock;
+            _restockRaw = raw;
+            Restock.Clear();
+            string[] parts = raw.Split(',');
+            for (int i = 0; i < parts.Length; i++)
+            {
+                string key = parts[i].Trim();
+                if (key.Length > 0)
+                    Restock.Add(key);
+            }
+            return Restock;
         }
 
         private static Dictionary<string, int> KeepMap()

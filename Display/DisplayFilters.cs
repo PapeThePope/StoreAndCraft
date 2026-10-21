@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using BepInEx.Bootstrap;
 using UnityEngine;
 
 namespace StoreAndCraft
@@ -34,6 +35,10 @@ namespace StoreAndCraft
         public const int GemsCoinsFilterId = 20;
         public const int UtilityFilterId = 10;
         public const int MiscFilterId = 5;
+        public const int ToolsFilterId = 7;
+        public const int WeaponsFilterId = 8;
+        public const int ArmorFilterId = 9;
+        public const int TrinketsFilterId = 24;
         /// <summary>Menu group only; "All" selects every Epic Loot craft-mat subtype.</summary>
         public const int EpicLootGroupId = 30;
         public const int ElDustFilterId = 31;
@@ -42,6 +47,13 @@ namespace StoreAndCraft
         public const int ElShardFilterId = 34;
         public const int ElRunestoneFilterId = 35;
         public const int MaxCategories = 12;
+
+        // Path of Valheiman (soft: only with that mod). Its items are all prefabs named "PT_...".
+        public const int PovRunesId = 40;
+        public const int PovEssencesId = 41;
+        public const int PovAzuriteId = 42;
+        public const int PovJewelsId = 43;
+        public const int PovOilsBombsId = 44;
 
         public static readonly int[] EpicLootSubFilterIds =
         {
@@ -57,9 +69,6 @@ namespace StoreAndCraft
         {
             if (filterId == EpicLootGroupId)
                 return true;
-            // Weapons / Armor intentionally have no per-item expand.
-            if (filterId == 8 || filterId == 9)
-                return false;
             DisplayFilter filter;
             if (!TryGet(filterId, out filter))
                 return false;
@@ -103,14 +112,14 @@ namespace StoreAndCraft
 
         private static readonly string[] FuelNames =
         {
-            "coal", "resin", "tar"
+            "coal", "resin", "tar", "frozenfuel"
         };
 
         private static readonly string[] HideNames =
         {
             "deerhide", "leatherscraps", "trollhide", "wolfpelt", "loxpelt",
-            "serpentscale", "chitin", "scalehide", "asksvinhide", "hare_pelt", "harepelt",
-            "bearhide", "bear_hide", "bearpelt", "bear_pelt"
+            "serpentscale", "chitin", "scalehide", "askhide", "asksvinhide", "hare_pelt", "harepelt",
+            "bjornhide", "bearhide", "bear_hide", "bearpelt", "bear_pelt"
         };
 
         private static readonly string[] PartsNames =
@@ -162,6 +171,19 @@ namespace StoreAndCraft
             "gemstone_red", "gemstone_blue", "gemstone_green"
         };
 
+        // Drinking vessels are weapon-type items (no category for those): Misc takes them by name.
+        private static readonly string[] DrinkVesselNames =
+        {
+            "tankard", "tankard_dvergr", "tankardanniversary", "tankardodin"
+        };
+
+        // Tools that are weapon-type items in Valheim: pickaxes, the scythe and the fishing rod belong under Tools.
+        private static bool SoftToolName(string key)
+        {
+            return !string.IsNullOrEmpty(key)
+                && (key.StartsWith("pickaxe", System.StringComparison.Ordinal) || key == "scythe" || key == "fishingrod");
+        }
+
         private static readonly string[] ElUtilityNames =
         {
             "leatherbelt", "silverring", "goldrubyring", "andvaranaut"
@@ -200,13 +222,31 @@ namespace StoreAndCraft
             Named(21, "Boss / Rare", "Boss / Selten", BossNames, ItemDrop.ItemData.ItemType.Material),
             Other(23, "Other materials", "Andere Materialien"),
 
+            // Torch-type items (Dvergr Lantern, Torch, Mist torch, Sparkler) count as tools: no other category has them.
             Typed(7, "Tools", "Werkzeuge", false,
-                ItemDrop.ItemData.ItemType.Tool),
+                ItemDrop.ItemData.ItemType.Tool, ItemDrop.ItemData.ItemType.Torch),
+            // Weapons: all weapon types incl. bows, bombs, staves (pickaxes, scythe, fishing rod are Tools by name, tankards are Misc).
+            Typed(8, "Weapons", "Waffen", false,
+                ItemDrop.ItemData.ItemType.OneHandedWeapon,
+                ItemDrop.ItemData.ItemType.TwoHandedWeapon,
+                ItemDrop.ItemData.ItemType.TwoHandedWeaponLeft,
+                ItemDrop.ItemData.ItemType.Bow,
+                ItemDrop.ItemData.ItemType.Attach_Atgeir),
+            // Armor: helmet, chest, legs, capes, gloves and shields.
+            Typed(9, "Armor", "Rüstung", false,
+                ItemDrop.ItemData.ItemType.Helmet,
+                ItemDrop.ItemData.ItemType.Chest,
+                ItemDrop.ItemData.ItemType.Legs,
+                ItemDrop.ItemData.ItemType.Shoulder,
+                ItemDrop.ItemData.ItemType.Hands,
+                ItemDrop.ItemData.ItemType.Shield),
             Typed(6, "Ammo", "Munition", false,
                 ItemDrop.ItemData.ItemType.Ammo,
                 ItemDrop.ItemData.ItemType.AmmoNonEquipable),
             Typed(10, "Utility", "Nutzen", false,
                 ItemDrop.ItemData.ItemType.Utility),
+            Typed(24, "Trinkets", "Schmuckstücke", false,
+                ItemDrop.ItemData.ItemType.Trinket),
             Typed(4, "Trophy", "Trophäe", false,
                 ItemDrop.ItemData.ItemType.Trophy),
             Typed(5, "Misc", "Sonstiges", false,
@@ -224,7 +264,19 @@ namespace StoreAndCraft
             Typed(34, "Shard", "Shard", false,
                 ItemDrop.ItemData.ItemType.Material, ItemDrop.ItemData.ItemType.Misc),
             Typed(35, "Runestone", "Runestone", false,
-                ItemDrop.ItemData.ItemType.Material, ItemDrop.ItemData.ItemType.Misc)
+                ItemDrop.ItemData.ItemType.Material, ItemDrop.ItemData.ItemType.Misc),
+
+            // Path of Valheiman (matched by PovCategoryOf, shown only when that mod is installed)
+            Typed(40, "PoV Runes", "PoV Runes", false,
+                ItemDrop.ItemData.ItemType.Material, ItemDrop.ItemData.ItemType.Misc, ItemDrop.ItemData.ItemType.Consumable),
+            Typed(41, "PoV Essences & Sigils", "PoV Essences & Sigils", false,
+                ItemDrop.ItemData.ItemType.Material, ItemDrop.ItemData.ItemType.Misc, ItemDrop.ItemData.ItemType.Consumable),
+            Typed(42, "PoV Azurite", "PoV Azurite", false,
+                ItemDrop.ItemData.ItemType.Material, ItemDrop.ItemData.ItemType.Misc, ItemDrop.ItemData.ItemType.Consumable),
+            Typed(43, "PoV Jewels", "PoV Jewels", false,
+                ItemDrop.ItemData.ItemType.Material, ItemDrop.ItemData.ItemType.Misc, ItemDrop.ItemData.ItemType.Consumable),
+            Typed(44, "PoV Oils & Bombs", "PoV Oils & Bombs", false,
+                ItemDrop.ItemData.ItemType.Material, ItemDrop.ItemData.ItemType.Misc, ItemDrop.ItemData.ItemType.Consumable)
         };
 
         private static DisplayFilter Named(int id, string en, string de, string[] names, params ItemDrop.ItemData.ItemType[] types)
@@ -483,6 +535,18 @@ namespace StoreAndCraft
 
             string key = Key(item);
 
+            // Path of Valheiman items belong to their own categories only (not Food / Misc / Other materials ...).
+            if (key.StartsWith("pt_", System.StringComparison.Ordinal))
+            {
+                int pov = PovCategoryOf(key, item.m_shared.m_itemType);
+                if (IsPovFilter(filterId))
+                    return pov == filterId;
+                if (pov != 0)
+                    return false;
+            }
+            else if (IsPovFilter(filterId))
+                return false;
+
             // Epic Loot items routed into existing vanilla-style categories.
             // Runestones live under Epic Loot → Runestone (not Boss / Rare).
             if (filterId == GemsCoinsFilterId && SoftElToken(key))
@@ -491,6 +555,12 @@ namespace StoreAndCraft
                 return true;
             if (filterId == MiscFilterId && SoftElUnidentified(key))
                 return true;
+            if (filterId == MiscFilterId && NameInList(key, DrinkVesselNames))
+                return true;
+            if (filterId == ToolsFilterId && SoftToolName(key))
+                return true;
+            if (filterId == WeaponsFilterId && (SoftToolName(key) || NameInList(key, DrinkVesselNames) || key == "playerunarmed"))
+                return false;
 
             if (!TypeAllowed(item.m_shared.m_itemType, found.Types))
                 return false;
@@ -512,6 +582,52 @@ namespace StoreAndCraft
                 return !IsClaimedByNamedFilter(key, item.m_shared.m_itemType);
 
             return true;
+        }
+
+        public static bool IsPovFilter(int filterId)
+        {
+            return filterId >= PovRunesId && filterId <= PovOilsBombsId;
+        }
+
+        private static int _povInstalled = -1;
+
+        /// <summary>Path of Valheiman is loaded (its categories show in the filter menu only then).</summary>
+        public static bool PovInstalled()
+        {
+            if (_povInstalled < 0)
+            {
+                bool found = false;
+                foreach (string guid in Chainloader.PluginInfos.Keys)
+                {
+                    if (guid != null && guid.IndexOf("pathofvalheiman", System.StringComparison.OrdinalIgnoreCase) >= 0)
+                    {
+                        found = true;
+                        break;
+                    }
+                }
+                _povInstalled = found ? 1 : 0;
+            }
+            return _povInstalled == 1;
+        }
+
+        /// <summary>The PoV category of a "pt_..." prefab (runes before essences: "Great Rune of First Essence"), 0 = none.</summary>
+        private static int PovCategoryOf(string key, ItemDrop.ItemData.ItemType type)
+        {
+            if (type != ItemDrop.ItemData.ItemType.Material && type != ItemDrop.ItemData.ItemType.Misc
+                && type != ItemDrop.ItemData.ItemType.Consumable)
+                return 0;
+            string k = key.Substring(3);
+            if (k.StartsWith("jewel", System.StringComparison.Ordinal))
+                return PovJewelsId;
+            if (k.Contains("azurite"))
+                return PovAzuriteId;
+            if (k.StartsWith("oil", System.StringComparison.Ordinal) || k.StartsWith("bomb", System.StringComparison.Ordinal))
+                return PovOilsBombsId;
+            if (k.Contains("rune"))
+                return PovRunesId;
+            if (k.Contains("essence") || k.StartsWith("sigil", System.StringComparison.Ordinal))
+                return PovEssencesId;
+            return 0;
         }
 
         /// <summary>Materials/misc not claimed by any other display category (mod reagents etc.).</summary>
@@ -652,7 +768,7 @@ namespace StoreAndCraft
         /// <summary>Shared-name tokens for category item rows (cached).</summary>
         public static List<string> SubItems(int filterId)
         {
-            if (filterId <= 0 || filterId == 8 || filterId == 9)
+            if (filterId <= 0)
                 return new List<string>();
             if (filterId == IngredientsFilterId)
                 return IngredientSubItems();
@@ -707,8 +823,28 @@ namespace StoreAndCraft
                     continue;
                 list.Add(shared);
             }
+            // Items that belong to the category by its soft rules (name ends on "hide", mod items, ...) but are not
+            // in the fixed name list: they are listed too (and found by the search), like the typed categories do.
+            bool scanned = false;
+            if (ObjectDB.instance?.m_items != null && ObjectDB.instance.m_items.Count > 0)
+            {
+                scanned = true;
+                foreach (UnityEngine.GameObject go in ObjectDB.instance.m_items)
+                {
+                    if (go == null)
+                        continue;
+                    ItemDrop drop = go.GetComponent<ItemDrop>();
+                    if (drop?.m_itemData?.m_shared == null || !Matches(drop.m_itemData, filterId))
+                        continue;
+                    string shared = drop.m_itemData.m_shared.m_name;
+                    if (string.IsNullOrEmpty(shared) || list.Contains(shared) || IsBadLabel(ItemLabel(shared)))
+                        continue;
+                    list.Add(shared);
+                }
+            }
             list.Sort(CompareLocalized);
-            _namedSubs[filterId] = list;
+            if (scanned)
+                _namedSubs[filterId] = list; // not cached before ObjectDB is ready: the next call scans again
             return list;
         }
 

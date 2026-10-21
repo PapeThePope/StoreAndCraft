@@ -79,6 +79,8 @@ namespace StoreAndCraft
         // Local only (not synced): item lists set in the F10 panel (see Store/ItemLists.cs).
         public ConfigEntry<string> GroundIgnoreItems { get; }
         public ConfigEntry<string> KeepInBagItems { get; }
+        public ConfigEntry<string> RestockItems { get; }
+        public ConfigEntry<KeyboardShortcut> RestockKey { get; }
 
         public ModConfig(ConfigFile file)
         {
@@ -185,6 +187,10 @@ namespace StoreAndCraft
                 "Show the notice above a station when its output has nowhere to go: Chest full, No linked chest, No chest nearby. Only the text: a smelter still waits while its chest is full. Local only, not synced.");
             GroundIgnoreItems = file.Bind("2 - Store", "GroundIgnoreItems", "",
                 "Items auto-store never picks up from the ground (e.g. eggs). Item names separated by commas, set in the F10 panel. Local only, not synced.");
+            RestockItems = file.Bind("2 - Store", "RestockItems", "",
+                "Items of the keep list that the restock key fills up to their amount from nearby chests. Item names separated by commas, set in the F10 panel (the Fill box of a tile). Local only, not synced.");
+            RestockKey = file.Bind("4 - Keys", "RestockKey", new KeyboardShortcut(KeyCode.Alpha0),
+                "Hotkey: bring the items marked Fill in the keep list (F10) up to their amount from nearby chests. Chests set to Ignore or Only stations are skipped, the carry weight is not a limit. Local only, not synced.");
             KeepInBagItems = file.Bind("2 - Store", "KeepInBagItems", "",
                 "Items dump leaves in your inventory: name=amount separated by commas (e.g. $item_wood=10), set in the F10 panel. Only the dump key, not middle-click. Local only, not synced.");
             ReleaseNewsSeen = file.Bind("1 - General", "ReleaseNewsSeen", "",

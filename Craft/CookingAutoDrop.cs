@@ -488,7 +488,9 @@ namespace StoreAndCraft
         internal static bool TryGetSmelterOutputPrefab(Smelter smelter, string ore, out string prefabName)
         {
             prefabName = null;
-            if (smelter == null || string.IsNullOrEmpty(ore) || SmelterGetConversion == null)
+            // An empty name is valid: stations without an input item (Frigid Kiln: m_from == null) spawn with ore "".
+            // For every other smelter GetItemConversion("") finds nothing, so this stays false there as before.
+            if (smelter == null || ore == null || SmelterGetConversion == null)
                 return false;
             object conv = SmelterGetConversion.Invoke(smelter, new object[] { ore });
             if (conv == null)
@@ -594,7 +596,7 @@ namespace StoreAndCraft
         private static bool Prefix(Smelter __instance, string ore, int stack)
         {
             _tagLink = -1;
-            if (__instance == null || stack <= 0 || string.IsNullOrEmpty(ore))
+            if (__instance == null || stack <= 0 || ore == null)
                 return true;
             if (!CookingAutoDrop.IsOn(__instance))
                 return true;

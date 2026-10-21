@@ -158,6 +158,12 @@ namespace StoreAndCraft
                 false, false, false, false, false, false, null, false, false, false);
 
             new Terminal.ConsoleCommand(
+                "sacstation",
+                "StoreAndCraft: what the station you look at is made of (for support)",
+                StationInfo.OnCommand,
+                false, false, false, false, false, false, null, false, false, false);
+
+            new Terminal.ConsoleCommand(
                 "storehelp",
                 "StoreAndCraft: list admin chat/console commands",
                 args => ConfigCommands.ShowHelp(),

@@ -32,6 +32,7 @@ Loot finds its chest. One key clears your pockets. Craft, upgrade and build stra
 - **Favorites** (**F**): never dumped or stored
 - **Leave on the ground** (button at the top of F10, only for you): pick items in a window with search, auto-store never picks them up from the ground (for example eggs)
 - **Keep in inventory** (button at the top of F10, only for you): an amount per item stays in your inventory when you dump (50 wood, keep 10: 40 go into the chests)
+- **Restock** (**0**, change it in F10): brings the items marked **Fill** in that list up to their amount from nearby chests. Chests set to Ignore or Only stations are skipped
 - **Search** (**Y**): nearest chest with the item blinks, map ping
 - A chest shows **Status: Full / Almost full** when you look at it (counts the stacks, not only the slots)
 - Fish are never picked up from the ground: they stay in the sea or your fish pond
@@ -65,6 +66,8 @@ Loot finds its chest. One key clears your pockets. Craft, upgrade and build stra
 - **E:** pick categories (small: one category or up to 4 items), search box
 - **Right click** an item on the display (or in that menu): camera flies to the chest that holds it, the chest blinks (again = next chest)
 - **Min** field in each item tile of that menu: below this amount the count on the display turns red (empty or 0 = off)
+- **Weapons**, **Armor** and **Trinkets** are categories too (every item has its own tile)
+- **Path of Valheiman:** own categories there (PoV Runes, Essences & Sigils, Azurite, Jewels, Oils & Bombs)
 - **Shift + right click:** switch layout
 - **Shift + left click:** display scale
 - **Alt+E** on small: name / amount. **Alt+R:** scan range per display (the only place to set it, 10 m until set)

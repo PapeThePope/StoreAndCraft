@@ -195,6 +195,9 @@ namespace StoreAndCraft
         /// Hammer C+place grab: always land stacks in the player bag (inventory UI may be closed).
         /// Claims ownership when safe so we never fire RpcRemove without a verified local add.
         /// </summary>
+        /// <summary>> 0 while the restock key runs: the carry weight does not limit what is taken out of the chests.</summary>
+        internal static int IgnoreWeight;
+
         public static int WithdrawForGrab(Container chest, string sharedName, int amount, Player player, bool leaveOne)
         {
             if (chest == null || player == null || amount <= 0 || string.IsNullOrEmpty(sharedName))
@@ -1031,7 +1034,7 @@ namespace StoreAndCraft
                     continue;
 
                 int move = Mathf.Min(take - taken, src.m_stack);
-                if (player != null)
+                if (player != null && IgnoreWeight == 0)
                     move = StackLimits.FitByWeight(player, src, move);
                 if (move <= 0)
                     break;

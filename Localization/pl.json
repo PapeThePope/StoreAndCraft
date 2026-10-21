@@ -400,7 +400,19 @@
   "Items auto-store leaves on the ground": "Przedmioty, których automatyczne zbieranie nie podnosi z ziemi",
   "Items dump keeps in your inventory (amount)": "Przedmioty pozostawiane w ekwipunku przy opróżnianiu (ilość)",
   "Ground cultivated again: ": "Ponownie spulchniono ziemię: ",
-  "New in this version:\n- F10: a list of items auto-store leaves on the ground (for example eggs)\n- F10: keep an amount per item in your inventory when you dump (50 wood, keep 10: 40 go into the chests)\n- PlanBuild: plan pieces take their materials from your chests\n- Hammer: own Store and Craft tab for displays, feed trough and scarecrow": "Nowości w tej wersji:\n- F10: lista przedmiotów, które automatyczne zbieranie zostawia na ziemi (np. jajka)\n- F10: ilość przedmiotu, która zostaje w ekwipunku przy opróżnianiu (50 drewna, zachowaj 10: 40 trafia do skrzyń)\n- PlanBuild: elementy planów pobierają materiały z twoich skrzyń\n- Młot: osobna zakładka Store and Craft dla tablic magazynowych, koryta i stracha na wróble",
+  "New in this version:\n- Restock key (0, change it in F10): brings the items you marked Fill in the keep list up to their amount from your chests\n- Display filter: new categories Weapons, Armor, Trinkets and, with Path of Valheiman, its runes, essences, jewels and more\n- The lantern, torches and tankards have a category now": "Nowości w tej wersji:\n- Klawisz uzupełniania (0, do zmiany w F10): uzupełnia ze skrzyń przedmioty oznaczone Uzup. na liście zachowanych do ich ilości\n- Filtr tablicy: nowe kategorie Broń, Zbroja, Talizmany oraz, z Path of Valheiman, jego runy, esencje, klejnoty i inne\n- Latarnia, pochodnie i kufle mają teraz kategorię",
   "Items left on the ground": "Przedmioty zostawiane na ziemi",
-  "Items kept in inventory": "Przedmioty zachowane w ekwipunku"
+  "Items kept in inventory": "Przedmioty zachowane w ekwipunku",
+  "Fill": "Uzup.",
+  "Restock": "Uzupełnij",
+  "Restock the items marked Fill from chests": "Uzupełnij przedmioty oznaczone Uzup. ze skrzyń",
+  "Inventory full.": "Ekwipunek pełny.",
+  "PoV Runes": "Runy PoV",
+  "PoV Essences & Sigils": "Esencje i pieczęcie PoV",
+  "PoV Azurite": "Azuryt PoV",
+  "PoV Jewels": "Klejnoty PoV",
+  "PoV Oils & Bombs": "Oleje i bomby PoV",
+  "Weapons": "Broń",
+  "Armor": "Zbroja",
+  "Trinkets": "Talizmany"
 }

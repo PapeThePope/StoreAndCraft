@@ -63,7 +63,7 @@ namespace StoreAndCraft
             return field;
         }
 
-        private static void StyleField(Image img)
+        internal static void StyleField(Image img)
         {
             Sprite sprite = SettingsPanel.Vanilla("text_field");
             if (sprite == null)

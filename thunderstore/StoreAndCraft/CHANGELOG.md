@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.6.2
+
+### NEW FEATURES
+- **Restock key** (default **0**, change it in F10): brings the items you marked **Fill** in the *Keep in inventory* list up to their amount from nearby chests. Every tile of that list has a small Fill box (off by default), so only what you choose is refilled. Chests set to Ignore or Only stations are skipped, Only build/craft chests work, the carry weight is not a limit. A full bag shows one message
+- **Display filter:** new categories **Weapons**, **Armor** (helmet, chest, legs, capes, gloves, shields) and **Trinkets**, with every item as its own tile
+- **Path of Valheiman** (other mod): own categories in the display filter - PoV Runes, PoV Essences & Sigils, PoV Azurite, PoV Jewels, PoV Oils & Bombs
+
+### FIX
+- Display filter: categories with a fixed item list (Hides, Parts, Ore, Wood, Stone ...) now list every item that belongs to them, so items like Askvin hide or Bear hide can be found with the search
+- **Auto-store (N)** now also works for stations that need no input item: their output went on the ground before
+- Display filter: Liquid Frost is listed under Fuel
+- Display filter: the Dvergr Lantern and the torches are under Tools, the tankards and mead horns under Misc (they had no category)
+
 ## 1.6.1
 
 ### NEW FEATURES

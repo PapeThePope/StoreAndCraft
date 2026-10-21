@@ -795,6 +795,8 @@ namespace StoreAndCraft
                 int id = choice.Id;
                 if (DisplayFilters.IsEpicLootSubFilter(id))
                     continue;
+                if (DisplayFilters.IsPovFilter(id) && !DisplayFilters.PovInstalled())
+                    continue; // Path of Valheiman categories only with that mod
                 bool on = CategoryIsOn(id, selectedSet, partialParents);
                 bool focused = id == _focusId;
                 int captured = id;
@@ -1099,6 +1101,53 @@ namespace StoreAndCraft
             Button btn = tile.GetComponent<Button>();
             if (field != null && btn != null)
                 btn.onClick.AddListener(field.BeginEdit);
+            AddRestockToggle(tile, token);
+        }
+
+        /// <summary>Keep list: the small Fill box (top left). On = the restock key brings the item up to its amount.</summary>
+        private static void AddRestockToggle(RectTransform tile, string token)
+        {
+            const string name = "SacRestockToggle";
+            Transform old = tile.Find(name);
+            if (old != null)
+                Object.Destroy(old.gameObject);
+
+            var go = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(Button));
+            go.transform.SetParent(tile, false);
+            RectTransform rt = go.transform as RectTransform;
+            rt.anchorMin = rt.anchorMax = new Vector2(0f, 1f);
+            rt.pivot = new Vector2(0f, 1f);
+            rt.sizeDelta = new Vector2(42f, 22f);
+            rt.anchoredPosition = new Vector2(6f, -6f);
+            Image bg = go.GetComponent<Image>();
+            TileAmountField.StyleField(bg);
+            bg.raycastTarget = true;
+            Button btn = go.GetComponent<Button>();
+            btn.targetGraphic = bg;
+            btn.transition = Selectable.Transition.None;
+
+            var labelGo = new GameObject("Value", typeof(RectTransform));
+            labelGo.transform.SetParent(rt, false);
+            Stretch(labelGo.transform as RectTransform);
+            TextMeshProUGUI label = UiFonts.CreateLabel(labelGo, 13f);
+            label.alignment = TextAlignmentOptions.Center;
+            label.textWrappingMode = TextWrappingModes.NoWrap;
+            label.overflowMode = TextOverflowModes.Ellipsis;
+            label.text = Loc.T("Fill", "Auf");
+
+            System.Action refresh = () =>
+            {
+                bool on = ItemLists.IsRestock(token);
+                label.color = on ? Gold : Muted;
+                label.fontStyle = on ? FontStyles.Normal : FontStyles.Italic;
+                bg.color = on ? new Color(1f, 0.9f, 0.55f, 1f) : Color.white;
+            };
+            refresh();
+            btn.onClick.AddListener(() =>
+            {
+                ItemLists.ToggleRestock(token);
+                refresh();
+            });
         }
 
         /// <summary>Tile look after its amount changed (no grid rebuild while the next box may be edited).</summary>

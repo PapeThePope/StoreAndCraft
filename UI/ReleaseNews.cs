@@ -21,15 +21,13 @@ namespace StoreAndCraft
 
         private static string Text => Loc.T(
             "New in this version:\n"
-            + "- F10: a list of items auto-store leaves on the ground (for example eggs)\n"
-            + "- F10: keep an amount per item in your inventory when you dump (50 wood, keep 10: 40 go into the chests)\n"
-            + "- PlanBuild: plan pieces take their materials from your chests\n"
-            + "- Hammer: own Store and Craft tab for displays, feed trough and scarecrow",
+            + "- Restock key (0, change it in F10): brings the items you marked Fill in the keep list up to their amount from your chests\n"
+            + "- Display filter: new categories Weapons, Armor, Trinkets and, with Path of Valheiman, its runes, essences, jewels and more\n"
+            + "- The lantern, torches and tankards have a category now",
             "Neu in dieser Version:\n"
-            + "- F10: eine Liste mit Items, die Auto-Lagern am Boden liegen lässt (zum Beispiel Eier)\n"
-            + "- F10: pro Item eine Anzahl, die beim Einlagern im Inventar bleibt (50 Holz, 10 behalten: 40 gehen in die Kisten)\n"
-            + "- PlanBuild: Bauplan-Teile nehmen ihr Material aus deinen Kisten\n"
-            + "- Hammer: eigener Reiter Store and Craft für Displays, Futtertrog und Vogelscheuche");
+            + "- Auffüll-Taste (0, in F10 änderbar): bringt die Items, die du in der Behalten-Liste mit Auf markiert hast, aus deinen Kisten auf ihre Anzahl\n"
+            + "- Display-Filter: neue Kategorien Waffen, Rüstung, Schmuckstücke und, mit Path of Valheiman, dessen Runen, Essenzen, Juwelen und mehr\n"
+            + "- Laterne, Fackeln und Humpen haben jetzt eine Kategorie");
 
         private static bool AlreadySeen()
         {

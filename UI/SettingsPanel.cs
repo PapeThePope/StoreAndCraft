@@ -292,6 +292,7 @@ namespace StoreAndCraft
             return new List<KeyValuePair<string, ConfigEntry<KeyboardShortcut>>>
             {
                 Pair(Loc.T("Dump", "Einlagern"), c.DumpKey),
+                Pair(Loc.T("Restock", "Auffüllen"), c.RestockKey),
                 Pair(Loc.T("Click store", "Klick-Einlagern"), c.HoverStoreKey),
                 Pair(Loc.T("Search", "Suche"), c.SearchKey),
                 Pair(Loc.T("Settings", "Einstellungen"), c.RenameKey),
@@ -855,6 +856,8 @@ namespace StoreAndCraft
                 Plugin.Settings.RenameKey, Loc.T("Settings", "Einstellungen"));
             AddHotkeyRow(Loc.T("Favorite an item (inventory)", "Item favorisieren (Inventar)"),
                 Plugin.Settings.FavoriteKey, Loc.T("Favorite", "Favorit"));
+            AddHotkeyRow(Loc.T("Restock the items marked Fill from chests", "Mit Auffüllen markierte Items aus Kisten holen"),
+                Plugin.Settings.RestockKey, Loc.T("Restock", "Auffüllen"));
 
             // Collapsible help.
             Button infoBtn = MakeButton(_content, "InfoToggle", "", ToggleInfo);

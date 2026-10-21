@@ -17,6 +17,8 @@ namespace StoreAndCraft
 
             if (KeyUtil.Down(Plugin.Settings.DumpKey.Value))
                 InventoryDump.DumpNearby();
+            if (KeyUtil.Down(Plugin.Settings.RestockKey.Value))
+                Restock.Run();
 
             if (InventoryGui.IsVisible())
             {
