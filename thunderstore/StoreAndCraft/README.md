@@ -1,18 +1,55 @@
-# StoreAndCraft
+![Store & Craft - Your base runs with you](https://raw.githubusercontent.com/morda0511/StoreAndCraft/main/thunderstore-assets/store-and-craft/store-and-craft-banner.png)
 
-**Your base runs with you.**
-Loot finds its chest. One key clears your pockets. Craft, upgrade and build straight from storage. Stations refill themselves from chests and put their output back. Storage displays, feed trough, scarecrow and more.
+<br>
 
-**Required on the server and on every client (same version).** Valheim 1.0 · BepInExPack 5.4.2350+. Console players cannot load the mod.
+**Loot finds its chest. One key clears your pockets. Craft, upgrade and build straight from storage.**
 
-**Bug reports:** https://github.com/morda0511/StoreAndCraft/issues/1
-**Discord:** https://discord.gg/9bD8sSdvX
+Stations refill themselves from chests and put their output back. Storage displays show your stock, a scarecrow farms for you, and one mod manager (**F10**) holds every setting and hotkey.
 
-**1.6.0:** the beehives (Ice, Royal Jelly, Crystal), berry bushes, wild herbs and mushrooms are no longer part of StoreAndCraft. Want them? Download **Forager's Garden**: everything you built with them comes back. Until then nothing is lost, queens and spores wait in your chests.
+> **Required on the server and on every client (same version).** Valheim 1.0 · BepInExPack 5.4.2350+ · Console players cannot load the mod.
 
----
+[Bug reports](https://github.com/morda0511/StoreAndCraft/issues/1) · [Discord](https://discord.gg/9bD8sSdvX) · [Forager's Garden](https://github.com/morda0511/ForagersGarden)
 
-## Features
+**Looking for the beehives, berry bushes, wild herbs and mushrooms?** They live in **Forager's Garden** now. Install it and everything you built with them comes back; until then nothing is lost, queens and spores wait in your chests.
+
+![](https://raw.githubusercontent.com/morda0511/StoreAndCraft/main/thunderstore-assets/store-and-craft/divider-norse.png)
+
+## At a glance
+
+| ![Store](https://raw.githubusercontent.com/morda0511/StoreAndCraft/main/thunderstore-assets/store-and-craft/icon-store-160.png) | ![Craft](https://raw.githubusercontent.com/morda0511/StoreAndCraft/main/thunderstore-assets/store-and-craft/icon-craft-160.png) | ![Stations](https://raw.githubusercontent.com/morda0511/StoreAndCraft/main/thunderstore-assets/store-and-craft/icon-stations-160.png) | ![Displays](https://raw.githubusercontent.com/morda0511/StoreAndCraft/main/thunderstore-assets/store-and-craft/icon-displays-160.png) |
+|:---:|:---:|:---:|:---:|
+| **Store**<br>Ground items and your pockets find their chest | **Craft**<br>Recipes, upgrades and building use your chests | **Stations**<br>Fill themselves, store their own output | **Displays**<br>Live stock on boards, red below your minimum |
+
+| ![Feed trough](https://raw.githubusercontent.com/morda0511/StoreAndCraft/main/thunderstore-assets/store-and-craft/icon-feed-160.png) | ![Scarecrow](https://raw.githubusercontent.com/morda0511/StoreAndCraft/main/thunderstore-assets/store-and-craft/icon-scarecrow-160.png) | ![Armor stand](https://raw.githubusercontent.com/morda0511/StoreAndCraft/main/thunderstore-assets/store-and-craft/icon-armor-160.png) | ![Settings](https://raw.githubusercontent.com/morda0511/StoreAndCraft/main/thunderstore-assets/store-and-craft/icon-settings-160.png) |
+|:---:|:---:|:---:|:---:|
+| **Feed trough**<br>Your tames walk up and eat | **Scarecrow**<br>Plants, harvests and replants the whole field | **Armor stand**<br>Swap your gear with one key | **Control**<br>One manager, every switch and hotkey |
+
+**Works with:** Epic Loot · PlanBuild · PierSupports · Path of Valheiman · Forager's Garden
+
+![](https://raw.githubusercontent.com/morda0511/StoreAndCraft/main/thunderstore-assets/store-and-craft/divider-norse.png)
+
+## Hotkeys
+
+Every key can be changed in the mod manager (**F10**).
+
+| Key | What it does |
+|:---|:---|
+| **.** | Dump: your inventory into matching chests (hotbar and favorites stay) |
+| **0** | Restock: bring the items marked *Fill* up to their amount from chests |
+| **Middle mouse** | Store the hovered item (inventory open) |
+| **Ctrl + middle mouse** | Fill the hovered stack from chests |
+| **F** | Favorite an item: never dumped or stored |
+| **Y** | Search: the nearest chest with the item blinks |
+| **C + place** | Grab a piece's materials from chests, nothing is placed |
+| **E / Shift + E** | Refill a station / fill it to the max |
+| **B / N** | Station auto-fill / auto-store |
+| **Alt + E** | Settings of the chest, station or display you look at |
+| **Alt + R** | Scan range of a display |
+| **F10** | Morda Mod Manager |
+
+![](https://raw.githubusercontent.com/morda0511/StoreAndCraft/main/thunderstore-assets/store-and-craft/divider-norse.png)
+
+## Store and craft
 
 ### Whole loaded base
 - **On by default:** dump, crafting and building, stations, auto-store and the scarecrow use every chest in the area Valheim has loaded around you. No ranges to set
@@ -47,6 +84,10 @@ Loot finds its chest. One key clears your pockets. Craft, upgrade and build stra
 - PierSupports: the extra pier segments are paid from chests too
 - PlanBuild: plan pieces take their materials from chests too
 
+![](https://raw.githubusercontent.com/morda0511/StoreAndCraft/main/thunderstore-assets/store-and-craft/divider-norse.png)
+
+## Automation
+
 ### Stations
 - **[E]** refill: fuel, ore, food from chests (inventory first)
 - **B** auto-fill: refills when empty, never from your bag
@@ -61,7 +102,21 @@ Loot finds its chest. One key clears your pockets. Craft, upgrade and build stra
 - **Stations wait when their chest is full:** "Chest full", "No linked chest", "No chest nearby" above them (switch in the Morda Mod Manager)
 - **Catch-up while away** (off by default): stations finish the time their area was unloaded
 
-### Storage displays (hammer, Store and Craft tab)
+### Chest settings (**Alt+E**)
+- **Ignore:** skipped by everything
+- **Show on display:** ignored chest still counts on displays
+- **Only build/craft:** you fill it (by hand or dump), no ground pickup or station output, stations never take from it. Only crafting and building take from it
+- **Only stations:** no dump, no ground pickup, no crafting or building from it. Only stations and links fill and empty it
+- **l1-l9:** link for stations
+- Settings are saved on the chest, not in its name
+
+![](https://raw.githubusercontent.com/morda0511/StoreAndCraft/main/thunderstore-assets/store-and-craft/divider-norse.png)
+
+## Build and farm
+
+All pieces are in the hammer's **Store and Craft** tab.
+
+### Storage displays
 - Carved boards: small, medium, large, upright and wide. Vanilla sign displays too
 - **E:** pick categories (small: one category or up to 4 items), search box
 - **Right click** an item on the display (or in that menu): camera flies to the chest that holds it, the chest blinks (again = next chest)
@@ -74,11 +129,11 @@ Loot finds its chest. One key clears your pockets. Craft, upgrade and build stra
 - Every display shows all of its items by itself (no shared pages)
 - Chests set to Ignore are not counted
 
-### Feed trough (hammer, Store and Craft tab)
+### Feed trough
 - Food filter, links, auto-fill (**Alt+E**)
 - Hungry tames walk to it and eat
 
-### Scarecrow (hammer, Store and Craft tab)
+### Scarecrow
 - Plants a crop grid, harvests when all is ripe, replants
 - **Shift / Ctrl + wheel:** width / length. **E:** crop, harvest / plant, auto-fill, links
 - Needs cultivated ground. Unlocks with the Cultivator recipe
@@ -94,13 +149,9 @@ Loot finds its chest. One key clears your pockets. Craft, upgrade and build stra
 - **Alt+E**: pick a preset item from your bag per weapon / shield / tool slot. **E** swaps it with the stand's piece, back and forth
 - Without a preset, **E** puts the stand's weapon into your bag
 
-### Chest settings (**Alt+E**)
-- **Ignore:** skipped by everything
-- **Show on display:** ignored chest still counts on displays
-- **Only build/craft:** you fill it (by hand or dump), no ground pickup or station output, stations never take from it. Only crafting and building take from it
-- **Only stations:** no dump, no ground pickup, no crafting or building from it. Only stations and links fill and empty it
-- **l1-l9:** link for stations
-- Settings are saved on the chest, not in its name
+![](https://raw.githubusercontent.com/morda0511/StoreAndCraft/main/thunderstore-assets/store-and-craft/divider-norse.png)
+
+## Control
 
 ### Morda Mod Manager
 - **F10** opens the list of all your mods. Click one to change its settings (switches, sliders, numbers, lists, hotkeys), then **Save**. The back arrow returns to the list
@@ -108,10 +159,12 @@ Loot finds its chest. One key clears your pockets. Craft, upgrade and build stra
 - Servers: only admins from adminlist.txt can save the server values
 - **Activity log** (optional): every transfer in a short list, renamed chests show as Chest[Name], lines fade out one by one
 
----
+![](https://raw.githubusercontent.com/morda0511/StoreAndCraft/main/thunderstore-assets/store-and-craft/divider-norse.png)
 
 ## Install
 
 1. Install [BepInExPack Valheim](https://thunderstore.io/c/valheim/p/denikson/BepInExPack_Valheim/)
 2. Put `StoreAndCraft.dll` in `BepInEx/plugins/StoreAndCraft/` (or use Thunderstore / r2modman)
 3. Servers: same version on the server and every client
+
+![Standing stones in the mist](https://raw.githubusercontent.com/morda0511/StoreAndCraft/main/thunderstore-assets/store-and-craft/store-and-craft-footer.png)
