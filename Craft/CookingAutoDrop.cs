@@ -201,6 +201,23 @@ namespace StoreAndCraft
             nv.InvokeRPC("RPC_RemoveDoneItem", point, 1);
         }
 
+        /// <summary>
+        /// SetSlot arguments for the running game version: Valheim 1.0.21 added an optional
+        /// "long sender" parameter, and MethodInfo.Invoke needs every parameter, so trailing
+        /// optional ones are filled with their defaults.
+        /// </summary>
+        private static object[] SetSlotArgs(params object[] args)
+        {
+            ParameterInfo[] ps = SetSlot.GetParameters();
+            if (ps.Length <= args.Length)
+                return args;
+            object[] full = new object[ps.Length];
+            Array.Copy(args, full, args.Length);
+            for (int p = args.Length; p < ps.Length; p++)
+                full[p] = ps[p].HasDefaultValue ? ps[p].DefaultValue : Type.Missing;
+            return full;
+        }
+
         private static bool TryDepositDoneToChest(CookingStation station, ZNetView nv)
         {
             if (GetSlot == null || SetSlot == null || IsItemDone == null || StatusNotDone == null)
@@ -225,7 +242,7 @@ namespace StoreAndCraft
                     return false;
                 }
 
-                SetSlot.Invoke(station, new object[] { i, "", 0f, StatusNotDone, false });
+                SetSlot.Invoke(station, SetSlotArgs(i, "", 0f, StatusNotDone, false));
                 nv.InvokeRPC(ZNetView.Everybody, "RPC_SetSlotVisual", i, "");
                 ActivityLog.ToChest(StationOutput.StationLabel(station), 1, label, outChest);
                 return true;
